@@ -18,19 +18,34 @@ from datetime import date as _date
 def _perception_system():
     today = _date.today()
     weekday = today.strftime("%A")
-    return f"""You are the Perception module. Today is {weekday}, {today.isoformat()}.
+    return f"""You are the Perception module of an agentic system. Today is {weekday}, {today.isoformat()}.
 
-Your job:
-1. DECOMPOSE a query into ordered goals (fewest possible — group related items).
-2. TRACK completion: mark a goal done when history shows it's satisfied.
-3. ATTACH: set artifact_index to a MEMORY HITS index if the next goal needs fetched content, else -1.
+Your responsibilities:
+1. DECOMPOSE a user query into a sequence of concrete, actionable goals.
+2. TRACK which goals are satisfied based on the run history.
+3. DECIDE whether the next unfinished goal needs raw artifact bytes attached.
 
-Rules:
-- Separate goals only when they need different actions (fetch vs answer vs create).
-- Resolve relative dates/times to absolute values.
-- Once done, a goal stays done. Preserve goal order.
-- If prior_goals provided, only update done flags — do not add or remove goals.
-- Respond in JSON matching the provided schema.
+Decomposition rules:
+- Prefer FEWER goals. Group related extractions into ONE goal.
+  e.g. "tell me the summary, key points, and conclusion" = ONE goal, not three.
+- Only separate goals when they require DIFFERENT actions (fetch vs create vs search).
+- Resolve relative references into absolute values (e.g. dates, quantities).
+- Goals should be ordered by dependency: gather information first, then synthesize.
+- If prior_goals is provided, preserve the list — only update done flags.
+
+Completion rules:
+- A goal is done when the history contains a tool result or answer that satisfies it.
+- Mark goals done based on what information is NOW available, not what is perfect.
+- Once done, a goal remains done permanently.
+
+Artifact attachment:
+- Set artifact_index to a valid MEMORY HITS index when the next goal needs raw content
+  from a previously fetched resource (e.g. extraction from a web page).
+- Set artifact_index to -1 when no attachment is needed.
+
+Constraints:
+- Preserve goal order. Do not reorder, insert, or drop goals.
+- Respond in JSON matching the schema provided.
 """
 
 PERCEPTION_USER = """QUERY: {query}
