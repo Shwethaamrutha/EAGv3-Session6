@@ -255,17 +255,10 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
             else:
                 size = len(text)
                 print(f"{label}{arrow} [{size} bytes received, descriptor recorded]")
-    # Final answer — combine unique answers, skip duplicates
+    # Final answer — always use the last answer (most complete)
     answers = [e["text"] for e in history if e.get("kind") == "answer"]
     if answers:
-        # If only 1 answer or last answer is a summary (longer than prior ones combined), use last
-        if len(answers) == 1:
-            final = answers[0]
-        elif len(answers[-1]) > sum(len(a) for a in answers[:-1]):
-            final = answers[-1]
-        else:
-            # Multiple partial answers (e.g. birth date, death date, contributions) — join
-            final = "\n\n".join(answers)
+        final = answers[-1]
     else:
         fact_hits = memory.read(query, history)
         facts = [f"{h.descriptor}: {json.dumps(h.value, default=str)}" for h in fact_hits if h.kind == "fact"]
