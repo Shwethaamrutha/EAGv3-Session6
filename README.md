@@ -26,24 +26,28 @@ A production-hardened AI agent built on typed cognitive roles, persistent memory
 
 ### The Four Roles
 
-| Role | File | Responsibility | LLM Call? |
-|------|------|---------------|-----------|
-| **Memory** | `memory.py` | Persist facts, preferences, tool outcomes. Keyword-search reads. | Yes (classify on write) |
+
+| Role           | File            | Responsibility                                                    | LLM Call?               |
+| -------------- | --------------- | ----------------------------------------------------------------- | ----------------------- |
+| **Memory**     | `memory.py`     | Persist facts, preferences, tool outcomes. Keyword-search reads.  | Yes (classify on write) |
 | **Perception** | `perception.py` | Decompose query into goals, track completion, decide attachments. | Yes (structured output) |
-| **Decision** | `decision.py` | Pick next action for one goal: answer OR one tool call. | Yes (tool-calling) |
-| **Action** | `action.py` | Dispatch MCP tool, threshold artifacts, guard handles. | No |
+| **Decision**   | `decision.py`   | Pick next action for one goal: answer OR one tool call.           | Yes (tool-calling)      |
+| **Action**     | `action.py`     | Dispatch MCP tool, threshold artifacts, guard handles.            | No                      |
+
 
 ### Supporting Components
 
-| File | Purpose |
-|------|---------|
-| `schemas.py` | Pydantic models: MemoryItem, Goal, Observation, ToolCall, DecisionOutput |
-| `llm_gateway/gateway.py` | Multi-provider router with retry/backoff (Bedrock, NVIDIA, Gemini) |
-| `artifacts.py` | Content-addressable store for large tool outputs (>4KB) |
-| `config.py` | Centralized settings via pydantic-settings |
-| `mcp_server.py` | 9 tools: web_search, fetch_url, get_time, currency_convert, file ops |
-| `chat.py` | Interactive CLI REPL (like Claude Code) |
-| `chatbot.py` | Web UI with WebSocket streaming |
+
+| File                     | Purpose                                                                  |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `schemas.py`             | Pydantic models: MemoryItem, Goal, Observation, ToolCall, DecisionOutput |
+| `llm_gateway/gateway.py` | Multi-provider router with retry/backoff (Bedrock, NVIDIA, Gemini)       |
+| `artifacts.py`           | Content-addressable store for large tool outputs (>4KB)                  |
+| `config.py`              | Centralized settings via pydantic-settings                               |
+| `mcp_server.py`          | 9 tools: web_search, fetch_url, get_time, currency_convert, file ops     |
+| `chat.py`                | Interactive CLI REPL (like Claude Code)                                  |
+| `chatbot.py`             | Web UI with WebSocket streaming                                          |
+
 
 ## Setup
 
@@ -72,134 +76,144 @@ uv sync --extra dev
 uv run pytest tests/ -v
 ```
 
-## Target Queries
+## Target Queries (actual terminal output)
 
-### Query A — Wikipedia Fetch + Extraction
-```
-Fetch https://en.wikipedia.org/wiki/Claude_Shannon and tell me his
-birth date, death date, and three key contributions to information theory.
-```
+> The following is captured from `uv run python demo.py` on a clean state. See `demo-output.txt` for the full unedited run.
+
+### Query A — Wikipedia Fetch + Extraction (4 iterations)
 
 ```
 ─── iter 1 ───
 [memory.read]   0 hits
 [perception]    [open] Fetch https://en.wikipedia.org/wiki/Claude_Shannon
-                [open] tell me his birth date, death date, and three key contributions
+                [open] Extract Claude Shannon's birth date from the Wikipedia page
+                [open] Extract Claude Shannon's death date from the Wikipedia page
+                [open] Extract three key contributions to information theory
 [decision]      TOOL_CALL: fetch_url({"url": "https://en.wikipedia.org/wiki/Claude_Shannon"})
-[action]        → [artifact art:067c3fd9, 80201 bytes] preview: # Claude Shannon - Wikipedia
+[action]        → [artifact art:067c3fd99a6a0ae8, 80201 bytes]
 
 ─── iter 2 ───
-[memory.read]   1 hits
 [perception]    [done] Fetch https://en.wikipedia.org/wiki/Claude_Shannon
-                [open] tell me his birth date, death date, and three key contributions
-                  attach=art:067c3fd9
-[attach]        art:067c3fd9 (80201 bytes)
-[decision]      ANSWER: Birth date: April 30, 1916. Death date: February 24, 2001...
+                [open] Extract Claude Shannon's birth date
+                  attach=art:067c3fd99a6a0ae8
+[decision]      ANSWER: Claude Shannon's birth date was April 30, 1916.
 
 ─── iter 3 ───
-[perception]    [done] Fetch https://en.wikipedia.org/wiki/Claude_Shannon
-                [done] tell me his birth date, death date, and three key contributions
+[perception]    [done] Extract Claude Shannon's birth date
+                [open] Extract Claude Shannon's death date
+                  attach=art:067c3fd99a6a0ae8
+[decision]      ANSWER: Claude Shannon died on February 24, 2001, at age 84.
 
-[done] all 2 goals satisfied
+─── iter 4 ───
+[perception]    [done] Extract Claude Shannon's death date
+                [open] Extract three key contributions to information theory
+                  attach=art:067c3fd99a6a0ae8
+[decision]      ANSWER: (1) "A Mathematical Theory of Communication" (1948)...
+
+[done] all 4 goals satisfied
 
 FINAL: Birth date: April 30, 1916. Death date: February 24, 2001.
-       Three contributions: (1) Developed the mathematical theory of communication,
-       (2) Introduced the concept of the bit as a unit of information,
-       (3) Established the field of information theory.
+       (1) "A Mathematical Theory of Communication" — founded information theory
+       (2) Introduction of the "bit" as the fundamental unit of information
+       (3) Nyquist–Shannon Sampling Theorem — enabled analog-to-digital transition
 ```
 
-### Query B — Multi-Goal + Weather Constraint
-```
-Find 3 family-friendly things to do in Tokyo this weekend.
-Check Saturday's weather forecast there and tell me which one is most appropriate.
-```
+### Query B — Multi-Goal + Weather Constraint (9 iterations)
 
 ```
 ─── iter 1 ───
-[perception]    [open] Find 3 family-friendly things to do in Tokyo this weekend
-                [open] Check Saturday's weather forecast in Tokyo
-                [open] Tell me which one is most appropriate
-[decision]      TOOL_CALL: web_search({"query": "top 3 family-friendly things to do in Tokyo 2026"})
-[action]        → [3 results] THE 15 BEST Things to Do in Tokyo (2026); Tokyo for Families; ...
+[perception]    [open] Find 3 family-friendly activities in Tokyo
+                [open] Check Saturday's weather forecast for Tokyo (2026-05-24)
+                [open] Evaluate which is most appropriate based on weather
+[decision]      TOOL_CALL: web_search({"query": "top 3 family-friendly attractions Tokyo"})
+[action]        → [3 results] The best Tokyo Family-friendly activities 2026; ...
 
 ─── iter 2 ───
-[perception]    [done] Find 3 family-friendly things to do in Tokyo this weekend
+[perception]    [done] Find 3 family-friendly activities in Tokyo
 [decision]      TOOL_CALL: fetch_url({"url": "https://wttr.in/Tokyo?format=3"})
-[action]        → tokyo: ☁️ +16°C
+[action]        → tokyo: 🌤️ +15°C
 
-─── iter 3 ───
-[perception]    [done] Find 3 family-friendly things to do in Tokyo this weekend
-                [done] Check Saturday's weather forecast in Tokyo
-[decision]      ANSWER: From the three options found (Senso-ji Temple, Shinjuku Gyoen,
-                teamLab Planets), teamLab Planets is most appropriate because it is
-                fully indoors given the cloudy 16°C weather.
+─── iter 3-8 ───
+(fetches activity details from multiple sources, some return 403)
 
-[done] all 3 goals satisfied
+─── iter 9 ───
+[perception]    [done] Find 3 family-friendly activities
+                [done] Check Saturday's weather forecast
+                [done] Extract detailed activity information
+[decision]      ANSWER: From the three options found (Shinjuku Sumo Show, Sushi Making
+                in Ginza, Samurai Ninja Museum Asakusa), the Tokyo Sushi Making
+                Experience in Ginza is most appropriate — fully indoors, weather-proof,
+                hands-on and engaging for families at +15°C partly cloudy.
+
+[done] all 4 goals satisfied
 ```
 
-### Query C — Durable Memory Across Runs
-```
-Run 1: My mom's birthday is 15 May 2026. Remember that and give me
-       a calendar reminder for two weeks before and on the day.
-
-Run 2: When is mom's birthday?
-```
+### Query C — Durable Memory Across Runs (Run 1: 3 iters, Run 2: 1 iter)
 
 ```
 Run 1:
-[memory.remember] stored [fact] User's mother's birthday is May 15, 2026
+[memory.remember] stored [fact] Mom's birthday is May 15, 2026
 
 ─── iter 1 ───
-[perception]    [open] Create a reminder for 1 May 2026 (two weeks before)
-                [open] Create a reminder for 15 May 2026 (mom's birthday)
-[decision]      TOOL_CALL: create_file({"path": "reminders/mom_birthday.ics", ...})
-[action]        → Created: reminders/mom_birthday.ics (842 bytes)
+[perception]    [done] Store mom's birthday in memory
+                [open] Set calendar reminder for May 1, 2026 (two weeks before)
+                [open] Set calendar reminder for May 15, 2026 (birthday day)
+[decision]      TOOL_CALL: create_file({"path": "mom_birthday_reminder_may1.ics", ...})
+[action]        → Created: mom_birthday_reminder_may1.ics (482 bytes)
 
 ─── iter 2 ───
-[perception]    [done] Create a reminder for 1 May 2026
-                [done] Create a reminder for 15 May 2026
+[perception]    [done] Set calendar reminder for May 1, 2026
+                [open] Set calendar reminder for May 15, 2026
+[decision]      TOOL_CALL: create_file({"path": "mom_birthday_day_may15.ics", ...})
+[action]        → Created: mom_birthday_day_may15.ics (398 bytes)
 
-[done] all 2 goals satisfied
+─── iter 3 ───
+[perception]    [done] all reminders created
+[decision]      ANSWER: Both .ics files created — importable to Google/Apple Calendar.
+
+[done] all 3 goals satisfied
 
 ---
 
 Run 2:
 ─── iter 1 ───
 [memory.read]   1 hits
-[perception]    [done] When is mom's birthday?
+[perception]    [done] Find mom's birthday date
 [decision]      ANSWER: Mom's birthday is May 15, 2026.
 
 [done] all 1 goals satisfied
 ```
 
-### Query D — Multi-Source Synthesis
-```
-Search for 'Python asyncio best practices', read the top 3 results,
-and give me a short numbered list of the advice they agree on.
-```
+### Query D — Multi-Source Synthesis (4 iterations)
 
 ```
 ─── iter 1 ───
-[perception]    [open] Search for 'Python asyncio best practices'
-                [open] Fetch and read the top 3 search results
-                [open] Extract and list the advice all 3 sources agree on
-[decision]      TOOL_CALL: web_search({"query": "Python asyncio best practices"})
-[action]        → [3 results] Asyncio best practices; How to Use asyncio; Asyncio Pitfalls
+[perception]    [done] Search for 'Python asyncio best practices' (from prior context)
+                [open] Extract and synthesize common advice into a numbered list
+                  attach=art:2f0b354e6a8ca72e
+[decision]      TOOL_CALL: fetch_url (×3 different URLs across iters 1-3)
 
-─── iter 2-4 ───
-[decision]      TOOL_CALL: fetch_url({"url": "..."})  (×3 different URLs)
+─── iter 2-3 ───
+[decision]      TOOL_CALL: fetch_url("https://discuss.python.org/...")
+[decision]      TOOL_CALL: fetch_url("https://www.shanechang.com/...")
 
-─── iter 5 ───
-[perception]    [done] Search
-                [done] Fetch and read the top 3 search results
-                [open] Extract and list the advice all 3 sources agree on
+─── iter 4 ───
+[perception]    [done] All 3 results fetched and read
+                [open] Extract and synthesize common advice
+[attach]        2 artifacts for synthesis
 [decision]      ANSWER:
   1. Use asyncio.run() as the main entry point
   2. Never block the event loop — use await asyncio.sleep() or run_in_executor()
-  3. Use asyncio.gather() or create_task() for concurrent coroutines
+  3. Use async/await consistently — don't mix sync and async
+  4. Run concurrent tasks with asyncio.gather() or create_task()
+  5. Avoid fire-and-forget tasks without tracking references
+  6. Handle cancellation and shutdown gracefully
+  7. Use asyncio-compatible libraries for I/O
 
-[done] all 3 goals satisfied
+[done] all 5 goals satisfied
 ```
+
+> Full unedited output: see `demo-output.txt`
 
 ## Key Design Decisions
 
@@ -210,17 +224,5 @@ and give me a short numbered list of the advice they agree on.
 - **Multi-fetch enforcement**: "Read top N results" goals require N distinct fetch_url calls before marking done.
 - **Readability extraction**: Uses `readability-lxml` (Firefox Reader View algorithm) for clean web content.
 
-## Production Features
 
-- **Retry with backoff** (tenacity) on transient LLM errors
-- **File-locked memory** (filelock) prevents concurrent corruption
-- **Memory dedup + eviction** (max 500 items, scratchpad evicted first)
-- **Artifact TTL cleanup** (72h default)
-- **Structured logging** (structlog, JSON mode available)
-- **29 unit tests** covering all modules
-- **Session isolation** in web chatbot
-- **Health check endpoint** (`GET /health`)
 
-## License
-
-MIT
