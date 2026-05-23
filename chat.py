@@ -24,7 +24,7 @@ import perception
 from artifacts import artifact_store
 from config import settings
 from memory import memory
-from schemas import Goal
+from schemas import Goal, SYNTHESIS_KEYWORDS
 from thinking import think, done
 
 # Suppress structlog in chat mode — we do our own formatted output
@@ -188,10 +188,8 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
             break
 
         attached: list[tuple[str, bytes]] = []
-        synthesis_keywords = {"synthesize", "synthesise", "extract", "list", "compare",
-                              "decide", "choose", "summarize", "common", "agree", "advice"}
-        goal_tokens = set(goal.text.lower().split())
-        is_synthesis = bool(goal_tokens & synthesis_keywords)
+        goal_lower = goal.text.lower()
+        is_synthesis = any(kw in goal_lower for kw in SYNTHESIS_KEYWORDS)
 
         if is_synthesis:
             seen_arts = set()
@@ -320,15 +318,15 @@ async def main():
                 shutil.rmtree("state", ignore_errors=True)
                 os.makedirs("state/artifacts", exist_ok=True)
                 os.makedirs("state/sandbox", exist_ok=True)
-                memory._items.clear()
+                memory.clear()
                 print(f"  {DIM}State cleared.{RESET}\n")
                 continue
             if query.lower() == "/memory":
-                items = memory._items
-                if not items:
+                if memory.item_count == 0:
                     print(f"  {DIM}(empty){RESET}\n")
                 else:
-                    for item in items[-10:]:
+                    items = memory.filter(recent=10)
+                    for item in items:
                         print(f"  {DIM}[{item.kind}]{RESET} {item.descriptor}")
                 print()
                 continue

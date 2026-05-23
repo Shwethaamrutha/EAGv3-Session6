@@ -29,7 +29,7 @@ import perception
 from artifacts import artifact_store
 from config import settings
 from memory import memory
-from schemas import Goal
+from schemas import Goal, SYNTHESIS_KEYWORDS
 
 P = 16  # column width
 
@@ -98,11 +98,8 @@ async def run_query(query, session, mcp_tools):
             break
 
         attached = []
-        synthesis_kw = {"synthesize", "synthesise", "extract", "list", "compare",
-                        "decide", "choose", "summarize", "common", "agree", "advice",
-                        "tell me", "which one", "appropriate", "recommend", "most"}
-        goal_tokens = set(goal.text.lower().split())
-        is_synthesis = any(kw in goal.text.lower() for kw in synthesis_kw)
+        goal_lower = goal.text.lower()
+        is_synthesis = any(kw in goal_lower for kw in SYNTHESIS_KEYWORDS)
 
         if is_synthesis:
             seen = set()

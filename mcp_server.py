@@ -69,7 +69,7 @@ async def web_search(query: str, max_results: int = 3) -> str:
     except Exception:
         pass
 
-    return "No results found. Search services may be rate-limited."
+    return "[ERROR] No results found. Search services may be rate-limited."
 
 
 @mcp.tool()
@@ -110,7 +110,7 @@ async def fetch_url(url: str) -> str:
 
             return f"Binary content ({content_type}), {len(resp.content)} bytes"
     except Exception as e:
-        return f"Fetch error: {e}"
+        return f"[ERROR] Fetch error: {e}"
 
 
 @mcp.tool()
@@ -148,11 +148,11 @@ async def currency_convert(amount: float, from_currency: str, to_currency: str) 
             data = resp.json()
             rate = data["rates"].get(to_currency.upper())
             if rate is None:
-                return f"Currency {to_currency} not found."
+                return f"[ERROR] Currency {to_currency} not found."
             result = amount * rate
             return f"{amount} {from_currency.upper()} = {result:.2f} {to_currency.upper()} (rate: {rate})"
     except Exception as e:
-        return f"Conversion error: {e}"
+        return f"[ERROR] Conversion error: {e}"
 
 
 @mcp.tool()
@@ -160,11 +160,11 @@ async def read_file(path: str) -> str:
     """Read a file from the sandbox directory. Path is relative to state/sandbox/."""
     target = SANDBOX_DIR / path
     if not target.exists():
-        return f"File not found: {path}"
+        return f"[ERROR] File not found: {path}"
     try:
         return target.read_text()
     except Exception as e:
-        return f"Read error: {e}"
+        return f"[ERROR] Read error: {e}"
 
 
 @mcp.tool()
@@ -172,9 +172,9 @@ async def list_dir(path: str = ".") -> str:
     """List files in a sandbox directory. Path is relative to state/sandbox/."""
     target = SANDBOX_DIR / path
     if not target.exists():
-        return f"Directory not found: {path}"
+        return f"[ERROR] Directory not found: {path}"
     if not target.is_dir():
-        return f"Not a directory: {path}"
+        return f"[ERROR] Not a directory: {path}"
     entries = []
     for item in sorted(target.iterdir()):
         kind = "dir" if item.is_dir() else "file"
@@ -188,7 +188,7 @@ async def create_file(path: str, content: str) -> str:
     target = SANDBOX_DIR / path
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
-        return f"File already exists: {path}. Use update_file or edit_file instead."
+        return f"[ERROR] File already exists: {path}. Use update_file or edit_file instead."
     target.write_text(content)
     return f"Created: {path} ({len(content)} bytes)"
 
@@ -198,7 +198,7 @@ async def update_file(path: str, content: str) -> str:
     """Overwrite an existing file in the sandbox. Path is relative to state/sandbox/."""
     target = SANDBOX_DIR / path
     if not target.exists():
-        return f"File not found: {path}. Use create_file instead."
+        return f"[ERROR] File not found: {path}. Use create_file instead."
     target.write_text(content)
     return f"Updated: {path} ({len(content)} bytes)"
 
@@ -208,10 +208,10 @@ async def edit_file(path: str, old_text: str, new_text: str) -> str:
     """Replace old_text with new_text in a sandbox file. Path is relative to state/sandbox/."""
     target = SANDBOX_DIR / path
     if not target.exists():
-        return f"File not found: {path}"
+        return f"[ERROR] File not found: {path}"
     current = target.read_text()
     if old_text not in current:
-        return f"old_text not found in {path}"
+        return f"[ERROR] old_text not found in {path}"
     updated = current.replace(old_text, new_text, 1)
     target.write_text(updated)
     return f"Edited: {path}"

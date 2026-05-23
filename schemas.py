@@ -3,6 +3,13 @@ from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel, Field
 
+# Shared constant — single source of truth for synthesis detection across all modules
+SYNTHESIS_KEYWORDS: frozenset[str] = frozenset({
+    "synthesize", "synthesise", "extract", "list", "compare",
+    "decide", "choose", "summarize", "common", "agree", "advice",
+    "tell me", "which one", "appropriate", "recommend", "most",
+})
+
 
 class MemoryItem(BaseModel):
     id: str

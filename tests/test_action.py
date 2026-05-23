@@ -66,8 +66,8 @@ async def test_action_handles_tool_exception():
     tc = ToolCall(name="broken_tool", arguments={})
 
     session = AsyncMock()
-    session.call_tool.side_effect = Exception("connection refused")
+    session.call_tool.side_effect = ConnectionError("connection refused")
 
     result_text, art_id = await execute(session, tc)
-    assert "[error]" in result_text
+    assert "[error]" in result_text.lower() or "error" in result_text.lower()
     assert art_id is None

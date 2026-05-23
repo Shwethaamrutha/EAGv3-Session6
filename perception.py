@@ -9,7 +9,7 @@ import uuid
 
 from llm_gateway import gateway
 from logger import get_logger
-from schemas import Goal, MemoryItem, Observation
+from schemas import Goal, MemoryItem, Observation, SYNTHESIS_KEYWORDS
 
 log = get_logger("perception")
 
@@ -144,7 +144,7 @@ def observe(
         temperature=0.7,
     )
 
-    if resp.parsed and "goals" in resp.parsed:
+    if resp.parsed and "goals" in resp.parsed and resp.parsed["goals"]:
         goals = []
         for g_data in resp.parsed["goals"]:
             art_id = None
@@ -194,12 +194,9 @@ def observe(
                     break
             if next_unfinished and not next_unfinished.attach_artifact_id:
                 # Only attach for goals that need to READ content (not find/search/check)
-                synthesis_keywords = {"synthesize", "synthesise", "extract", "compare",
-                                      "summarize", "common", "agree", "appropriate",
-                                      "which one", "recommend", "decide", "choose"}
                 goal_lower = next_unfinished.text.lower()
                 skip_keywords = {"find", "search", "fetch", "check", "get weather"}
-                if any(kw in goal_lower for kw in synthesis_keywords) and not any(kw in goal_lower for kw in skip_keywords):
+                if any(kw in goal_lower for kw in SYNTHESIS_KEYWORDS) and not any(kw in goal_lower for kw in skip_keywords):
                     for h in hits:
                         if h.artifact_id:
                             next_unfinished.attach_artifact_id = h.artifact_id

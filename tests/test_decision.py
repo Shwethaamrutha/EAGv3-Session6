@@ -45,16 +45,13 @@ def test_decision_tool_call_parsed(mock_gateway_response):
         assert out.tool_call.name == "web_search"
 
 
-def test_decision_answer_tool_treated_as_answer(mock_gateway_response):
+def test_decision_no_output_is_error(mock_gateway_response):
     with patch("decision.gateway") as mock_gw:
-        mock_gw.chat.return_value = mock_gateway_response(
-            tool_calls=[{"name": "ANSWER", "arguments": {"answer": "Mom's birthday is May 15"}}]
-        )
+        mock_gw.chat.return_value = mock_gateway_response(text=None, tool_calls=None)
         from decision import next_step
-        goal = Goal(id="g1", text="when is birthday")
-        out = next_step(goal, [], [], [], [{"name": "get_time", "description": "time", "parameters": {}}])
-        assert out.is_answer is True
-        assert "May 15" in out.answer
+        goal = Goal(id="g1", text="do something")
+        out = next_step(goal, [], [], [], [])
+        assert out.is_error is True
 
 
 def test_decision_disables_tools_when_artifact_attached(mock_gateway_response):

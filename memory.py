@@ -60,13 +60,23 @@ class MemoryService:
         self._items: list[MemoryItem] = []
         self._load()
 
+    @property
+    def item_count(self) -> int:
+        """Public read-only access to the number of stored memory items."""
+        return len(self._items)
+
+    def clear(self) -> None:
+        """Remove all items from memory (does not persist until next _save)."""
+        self._items.clear()
+        self._save()
+
     def _load(self):
         with MEMORY_LOCK:
             if MEMORY_FILE.exists() and MEMORY_FILE.stat().st_size > 0:
                 try:
                     data = json.loads(MEMORY_FILE.read_text())
                     self._items = [MemoryItem.model_validate(d) for d in data]
-                except (json.JSONDecodeError, Exception) as e:
+                except (json.JSONDecodeError, OSError) as e:
                     log.error("memory_load_failed", error=str(e))
                     self._items = []
 

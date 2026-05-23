@@ -67,7 +67,6 @@ class GatewayClient:
         tool_choice: str | None = None,
         response_format: dict | None = None,
         auto_route: str | None = None,
-        provider: str | None = None,
         temperature: float = 1.0,
     ) -> GatewayResponse:
         start = time.time()

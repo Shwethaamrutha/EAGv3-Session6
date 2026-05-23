@@ -10,7 +10,7 @@ import re
 from config import settings
 from llm_gateway import gateway
 from logger import get_logger
-from schemas import DecisionOutput, Goal, MemoryItem, ToolCall
+from schemas import DecisionOutput, Goal, MemoryItem, SYNTHESIS_KEYWORDS, ToolCall
 
 log = get_logger("decision")
 
@@ -24,41 +24,26 @@ Today's date is {today.isoformat()}. The current year is {today.year}.
 
 You have two options:
 1. ANSWER: If you have enough information to satisfy the goal, respond with a CONCISE answer.
-   - Be brief and direct. 2-4 sentences max. No filler, no elaboration.
+   - Be brief and direct. 2-4 sentences max. No filler.
    - Answer EXACTLY what was asked — nothing more.
-   - Format: "Birth date: X. Death date: Y. Contributions: (1)... (2)... (3)..."
-   - For recommendations: FIRST list exactly the options found in MEMORY HITS snippets by name,
-     THEN pick the best. e.g. "From the three options found (Ueno Zoo, Tsukiji sushi class, Tokyo Skytree),
-     the sushi class is most appropriate because it is fully indoors."
-   - Extract real names from the search snippets in MEMORY HITS. Do NOT invent options.
-   - Never give meta-answers like "based on available information" or "here's my analysis".
+   - For recommendations: list the options found, then pick the best with a reason.
+   - Extract real names from MEMORY HITS snippets. Do NOT invent options.
 
 2. TOOL CALL: If you need external information or must perform an action, call exactly ONE tool.
    - Pick the most appropriate tool from the available tools.
    - NEVER pass artifact handles (strings starting with "art:") as file paths or URLs.
 
 CRITICAL PRIORITY:
-- ALWAYS check MEMORY HITS first. If the answer is in memory hits (look at the "value" fields),
-  answer immediately from memory. Do NOT call tools to look up what memory already tells you.
+- Check MEMORY HITS first. If the answer is already there, answer immediately.
 - If ATTACHED ARTIFACTS contains content, use it to form your answer.
 - Only call a tool if memory hits AND attached artifacts do NOT contain the answer.
-- For "find N things" goals: craft a SPECIFIC search query that will return named items.
-  e.g. "find 3 family-friendly things in Tokyo" → search "top 3 family-friendly attractions Tokyo names list"
-  The search query should ask for a LIST with specific NAMES, not generic pages.
-- For weather/time/price checks: use fetch_url with direct data endpoints (e.g. wttr.in for weather).
 
 Rules:
 - Do exactly one thing: answer OR call one tool. Never both.
-- NEVER narrate your reasoning. No "Let me analyze", "I need to", "However", "Based on".
-  Start your answer DIRECTLY with the facts or the list. First word should be the answer content.
+- NEVER narrate your reasoning. Start DIRECTLY with the facts.
 - Be efficient. One tool call should accomplish the goal if possible.
-- NEVER say "I cannot answer", "I need more context", or "goal is incomplete".
-  You ALWAYS have enough information. Use what's available and give a concrete answer.
-- For choosing/recommending: use the search results and tool outcomes in MEMORY HITS.
-  Pick a specific option and explain why. Never ask the user for clarification.
-- For weather: use fetch_url with "https://wttr.in/CITY?format=3" for quick weather data.
-- For calendar reminders: create .ics files (iCalendar format) so they can be imported into Google Calendar/Apple Calendar.
-- When answering a synthesis goal: combine info from ALL memory hits. Start with the numbered list immediately.
+- Always give a concrete answer from available information. Never ask for clarification.
+- When answering a synthesis goal: combine info from ALL memory hits.
 """
 
 DECISION_USER = """GOAL: {goal_text}
@@ -164,10 +149,7 @@ def next_step(
         pending_urls_text = f"PENDING URLs TO FETCH (not yet read):\n  " + "\n  ".join(unfetched[:5]) + "\n\n"
 
     # Determine if this is a FINAL synthesis/recommendation goal (combines multiple sources)
-    synthesis_keywords = {"synthesize", "synthesise", "compare", "common", "agree",
-                          "decide", "choose", "appropriate", "recommend", "most",
-                          "all 3", "all three", "they agree", "advice they"}
-    goal_is_synthesis = any(kw in goal.text.lower() for kw in synthesis_keywords)
+    goal_is_synthesis = any(kw in goal.text.lower() for kw in SYNTHESIS_KEYWORDS)
 
     # Force answer (no tools) when:
     # 1. Artifacts attached and no pending URLs to fetch
@@ -210,9 +192,6 @@ def next_step(
 
     if resp.tool_calls:
         tc = resp.tool_calls[0]
-        if tc["name"].upper() == "ANSWER":
-            answer_text = tc["arguments"].get("answer", "") or tc["arguments"].get("text", "") or str(tc["arguments"])
-            return DecisionOutput(answer=answer_text)
         return DecisionOutput(tool_call=ToolCall(name=tc["name"], arguments=tc["arguments"]))
 
     if resp.text:

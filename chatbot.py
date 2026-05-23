@@ -29,7 +29,7 @@ from artifacts import artifact_store
 from config import settings
 from logger import get_logger
 from memory import memory
-from schemas import Goal
+from schemas import Goal, SYNTHESIS_KEYWORDS
 
 log = get_logger("chatbot")
 
@@ -51,8 +51,7 @@ app = FastAPI(title="Agent6 Chatbot", lifespan=lifespan)
 async def health():
     return {
         "status": "ok",
-        "memory_items": len(memory._items),
-        "nvidia_configured": bool(settings.nvidia_api_key),
+        "memory_items": memory.item_count,
     }
 
 
@@ -117,10 +116,8 @@ async def run_agent_streaming(query: str, ws: WebSocket, session_id: str):
                 break
 
             attached: list[tuple[str, bytes]] = []
-            synthesis_keywords = {"synthesize", "synthesise", "extract", "list", "compare",
-                                  "decide", "choose", "summarize", "common", "agree", "advice"}
-            goal_tokens = set(goal.text.lower().split())
-            is_synthesis = bool(goal_tokens & synthesis_keywords)
+            goal_lower = goal.text.lower()
+            is_synthesis = any(kw in goal_lower for kw in SYNTHESIS_KEYWORDS)
 
             if is_synthesis:
                 seen_arts = set()

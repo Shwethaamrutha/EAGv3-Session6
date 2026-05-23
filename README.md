@@ -187,31 +187,77 @@ Run 2:
 ### Query D — Multi-Source Synthesis (4 iterations)
 
 ```
-─── iter 1 ───
-[perception]    [done] Search for 'Python asyncio best practices' (from prior context)
-                [open] Extract and synthesize common advice into a numbered list
-                  attach=art:2f0b354e6a8ca72e
-[decision]      TOOL_CALL: fetch_url (×3 different URLs across iters 1-3)
+Search for 'Python asyncio best practices', read the top 3 results,
+and give me a short numbered list of the advice they agree on... 
+.. 
 
-─── iter 2-3 ───
-[decision]      TOOL_CALL: fetch_url("https://discuss.python.org/...")
-[decision]      TOOL_CALL: fetch_url("https://www.shanechang.com/...")
+─── iter 1 ───
+[memory.read]   0 hits
+[perception]    [ ] Search for 'Python asyncio best practices'
+                [ ] Fetch and read the first search result
+                [ ] Fetch and read the second search result
+                [ ] Fetch and read the third search result
+                [ ] Identify and list the advice that all three sources agree on
+[decision]      TOOL_CALL: web_search({"query": "Python asyncio best practices", "max_results": 3})
+[action]        → [3 results] Asyncio Best Practices and Common Pitfalls - Shane; Asyncio best practices - Async-SIG - Discussions o; How to Use asyncio for Concurrent Programming in P
+
+─── iter 2 ───
+[memory.read]   1 hits
+[perception]    [✓] Search for 'Python asyncio best practices'
+                [ ] Fetch and read the first search result
+                [ ] Fetch and read the second search result
+                [ ] Fetch and read the third search result
+                [ ] Identify and list the advice that all three sources agree on
+[decision]      TOOL_CALL: fetch_url({"url": "https://www.shanechang.com/p/python-asyncio-best-practices-pitfalls"})
+[action]        → Python’s asyncio library is powerful but comes with its own set of conventions a
+
+─── iter 3 ───
+[memory.read]   2 hits
+[perception]    [✓] Search for 'Python asyncio best practices'
+                [✓] Fetch and read the first search result
+                [ ] Fetch and read the second search result
+                [ ] Fetch and read the third search result
+                [ ] Identify and list the advice that all three sources agree on
+[decision]      TOOL_CALL: fetch_url({"url": "https://discuss.python.org/t/asyncio-best-practices/12576"})
+[action]        → [TobiasHT](https://discuss.python.org/u/TobiasHT)
 
 ─── iter 4 ───
-[perception]    [done] All 3 results fetched and read
-                [open] Extract and synthesize common advice
-[attach]        2 artifacts for synthesis
-[decision]      ANSWER:
-  1. Use asyncio.run() as the main entry point
-  2. Never block the event loop — use await asyncio.sleep() or run_in_executor()
-  3. Use async/await consistently — don't mix sync and async
-  4. Run concurrent tasks with asyncio.gather() or create_task()
-  5. Avoid fire-and-forget tasks without tracking references
-  6. Handle cancellation and shutdown gracefully
-  7. Use asyncio-compatible libraries for I/O
+[memory.read]   3 hits
+[perception]    [✓] Search for 'Python asyncio best practices'
+                [✓] Fetch and read the first search result
+                [✓] Fetch and read the second search result
+                [ ] Fetch and read the third search result
+                [ ] Identify and list the advice that all three sources agree on
+[decision]      TOOL_CALL: fetch_url({"url": "https://oneuptime.com/blog/post/2026-01-24-asyncio-concurrent-programmi)
+[action]        → [artifact art:ad2033105f6cead5, 10987 bytes] preview: # How to Use asyncio for Concurrent Programming in Python
+
+─── iter 5 ───
+[memory.read]   4 hits
+[perception]    [✓] Search for 'Python asyncio best practices'
+                [✓] Fetch and read the first search result
+                [✓] Fetch and read the second search result
+                [✓] Fetch and read the third search result
+                [ ] Identify and list the advice that all three sources agree on
+                      attach=art:ad2033105f6cead5
+[attach]        1 artifacts for synthesis
+[decision]      ANSWER: All three sources (Shane Chang's blog, OneUptime/concurrent programming guide, and Python.org Async-...
 
 [done] all 5 goals satisfied
 ```
+╭───────────────────────────────────────────────────────────────────────────────────────── FINAL ─────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                                                                                         │
+│  All three sources (Shane Chang's blog, OneUptime/concurrent programming guide, and Python.org Async-SIG discussion) agree on the following advice:                                     │
+│                                                                                                                                                                                         │
+│   1 Don't block the event loop — Never use blocking calls (e.g., time.sleep()) inside async functions. Use await asyncio.sleep() or offload blocking work with run_in_executor().       │
+│   2 Use asyncio.run() as the main entry point — Start your asyncio program with asyncio.run(main()) rather than manually managing the event loop.                                       │
+│   3 Use asyncio.gather() or create_task() to run coroutines concurrently — Don't await independent operations sequentially; schedule them concurrently to get the performance benefits  │
+│     of async.                                                                                                                                                                           │
+│   4 Use async/await consistently — Any function that does async work must be defined with async def and called with await; mixing sync and async incorrectly breaks concurrency.        │
+│                                                                                                                                                                                         │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+> 
+
+
 
 > Full unedited output: see `demo-output.txt`
 

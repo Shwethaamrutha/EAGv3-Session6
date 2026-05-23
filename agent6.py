@@ -29,7 +29,7 @@ from artifacts import artifact_store
 from config import settings
 from logger import get_logger
 from memory import memory
-from schemas import Goal
+from schemas import Goal, SYNTHESIS_KEYWORDS
 
 log = get_logger("agent6")
 
@@ -123,10 +123,8 @@ async def run(query: str) -> str:
                 break
 
             attached: list[tuple[str, bytes]] = []
-            synthesis_keywords = {"synthesize", "synthesise", "extract", "list", "compare",
-                                  "decide", "choose", "summarize", "common", "agree", "advice"}
-            goal_tokens = set(goal.text.lower().split())
-            is_synthesis = bool(goal_tokens & synthesis_keywords)
+            goal_lower = goal.text.lower()
+            is_synthesis = any(kw in goal_lower for kw in SYNTHESIS_KEYWORDS)
 
             if is_synthesis:
                 seen_arts = set()
@@ -207,15 +205,7 @@ def _final_answer_from(history: list[dict], query: str) -> str:
     if answers:
         return "\n\n".join(answers)
 
-    from memory import memory
-    hits = memory.read(query, history)
-    fact_answers = []
-    for h in hits:
-        if h.kind == "fact" and h.value:
-            fact_answers.append(f"{h.descriptor}: {json.dumps(h.value, default=str)}")
-    if fact_answers:
-        return "\n".join(fact_answers)
-
+    # Derive facts from action history instead of re-reading memory
     actions = [e.get("result_descriptor", "") for e in history if e.get("kind") == "action"]
     if actions:
         return "Actions completed:\n" + "\n".join(f"- {a[:200]}" for a in actions)

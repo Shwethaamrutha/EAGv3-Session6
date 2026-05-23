@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from mcp import ClientSession
+from mcp.shared.exceptions import McpError
 
 from artifacts import artifact_store
 from config import settings
@@ -25,7 +26,7 @@ async def execute(session: ClientSession, tool_call: ToolCall) -> tuple[str, str
 
     try:
         result = await session.call_tool(tool_call.name, arguments=tool_call.arguments)
-    except Exception as e:
+    except (McpError, ConnectionError, TimeoutError, OSError) as e:
         log.error("tool_dispatch_failed", tool=tool_call.name, error=str(e))
         return f"[error] tool dispatch failed: {e}", None
 
