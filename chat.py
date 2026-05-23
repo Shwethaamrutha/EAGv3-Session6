@@ -154,7 +154,7 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
             if g.done:
                 status = f"{GREEN}[✓]{RESET}"
             else:
-                status = f"{AMBER}[ ]{RESET}"
+                status = f"{GRAY}[ ]{RESET}"
             print(f"{prefix}{status} {g.text}")
             if g.attach_artifact_id and not g.done:
                 print(f"{' ' * P}      {PURPLE}attach={g.attach_artifact_id}{RESET}")
