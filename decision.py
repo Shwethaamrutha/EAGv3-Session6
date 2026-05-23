@@ -157,10 +157,9 @@ def next_step(
     # Force answer (no tools) when:
     # 1. Artifacts attached and no pending URLs to fetch
     # 2. This is a FINAL synthesis goal (not intermediate) and sufficient data exists
-    is_final_synthesis = goal_is_synthesis and not unfetched
     has_sufficient_data = sum(1 for h in hits if h.kind == "tool_outcome") >= 2
 
-    if (attached and not unfetched) or (is_final_synthesis and has_sufficient_data):
+    if (attached and not unfetched) or (goal_is_synthesis and has_sufficient_data):
         use_tools = None
         tools_text = "(tools disabled — answer using MEMORY HITS and any ATTACHED ARTIFACTS)"
         pending_urls_text = ""
