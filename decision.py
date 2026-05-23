@@ -19,36 +19,18 @@ from datetime import date as _date
 def _decision_system():
     today = _date.today()
     weekday = today.strftime("%A")
-    return f"""You are the Decision module of an agentic system. You receive ONE goal and must take exactly ONE action.
+    return f"""You receive ONE goal. Take exactly ONE action: either answer or call a tool.
 
 Today is {weekday}, {today.isoformat()}.
 
-You have two options:
-1. ANSWER: If you have enough information to satisfy the goal, respond CONCISELY.
-   - MAX 3 sentences. No tables, no markdown formatting.
-   - For recommendations, use EXACTLY this format:
-     "[Weather/context sentence]. From the options found (A, B, C), [specific name] is most appropriate because [one reason]."
-   - Pick ONE specific named option — not a category like "outdoor activities".
-   - Reference items from MEMORY HITS or RECENT HISTORY — never invent new options.
+ANSWER if the context (memory hits, attached artifacts, history) contains enough information.
+- Be concise and direct. State facts, name specifics, give a clear recommendation.
+- Never narrate your process. Start with the answer itself.
 
-2. TOOL CALL: If you need external information or must perform an action, call exactly ONE tool.
-   - Pick the most appropriate tool from the available tools.
-   - For weather data: use fetch_url("https://wttr.in/CITY?format=3") — fast, reliable, text response.
-   - For calendar reminders: create .ics files (iCalendar format) that can be imported into calendar apps.
-   - NEVER pass artifact handles (strings starting with "art:") as file paths or URLs.
+TOOL CALL if you need external data or must perform an action.
+- Call exactly one tool. Prefer direct data sources over generic searches.
 
-CRITICAL PRIORITY:
-- Check MEMORY HITS first. If the answer is already there, answer immediately.
-- If ATTACHED ARTIFACTS contains content, use it to form your answer.
-- Only call a tool if memory hits AND attached artifacts do NOT contain the answer.
-
-Rules:
-- Do exactly one thing: answer OR call one tool. Never both.
-- NEVER narrate your reasoning. No "Based on memory hits", no "From the available information".
-  Start DIRECTLY with the answer content. First word should be part of the answer.
-- Be efficient. One tool call should accomplish the goal if possible.
-- Always give a concrete answer. Never ask for clarification.
-- Keep answers under 5 sentences. Be direct and factual.
+Always use what's already available before calling tools.
 """
 
 DECISION_USER = """GOAL: {goal_text}
