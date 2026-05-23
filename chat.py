@@ -152,12 +152,12 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
         for i, g in enumerate(obs.goals):
             prefix = f"{BLUE}{'[perception]':<{P}}{RESET}" if i == 0 else " " * P
             if g.done:
-                status = f"{GREEN}[done]{RESET}"
+                status = f"{GREEN}[✓]{RESET}"
             else:
-                status = f"{AMBER}[open]{RESET}"
+                status = f"{AMBER}[ ]{RESET}"
             print(f"{prefix}{status} {g.text}")
             if g.attach_artifact_id and not g.done:
-                print(f"{' ' * P}  {PURPLE}attach={g.attach_artifact_id}{RESET}")
+                print(f"{' ' * P}      {PURPLE}attach={g.attach_artifact_id}{RESET}")
 
         if obs.all_done:
             has_answer = any(e.get("kind") == "answer" for e in history)
