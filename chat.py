@@ -254,7 +254,6 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
             last_lower = last.lower()
             # If last answer is a recommendation/synthesis, use it alone (it has full context)
             # Check if ANY goal was a synthesis/recommendation goal
-            from schemas import SYNTHESIS_KEYWORDS
             all_goal_texts = " ".join(g.text.lower() for g in obs.goals) if obs else ""
             has_synthesis_goal = any(kw in all_goal_texts for kw in SYNTHESIS_KEYWORDS)
 
