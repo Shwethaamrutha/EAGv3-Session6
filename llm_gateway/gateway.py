@@ -1,33 +1,30 @@
 """
-LLM Gateway V3 — Bedrock-powered multi-model router.
+LLM Gateway V3 — Multi-provider router with failover.
 
-Uses AWS Bedrock (--profile bedrock) with no rate limit concerns.
+Provider priority: NVIDIA (free) → Gemini (free) → Bedrock Sonnet (paid, last resort)
+
 Auto-routes by task:
-- perception → Claude Haiku 4.5 (fast structured output)
-- decision   → Claude Haiku 4.5 (tool-calling)
-- memory     → Claude Haiku 4.5 (classification)
+- perception → NVIDIA llama-3.3-70b (structured JSON)
+- decision   → NVIDIA llama-3.3-70b (tool-calling)
+- memory     → NVIDIA llama-3.3-70b (classification)
+- fallback   → Bedrock Claude Sonnet 4.6 (if NVIDIA fails)
 """
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any
-
-import boto3
 
 from config import settings
 from logger import get_logger
 
 log = get_logger("gateway")
 
-# Model selection per role (using inference profile IDs)
-BEDROCK_MODELS = {
-    "perception": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-    "decision": "us.anthropic.claude-sonnet-4-6",
-    "memory": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-    "default": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-}
+NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
+NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
+BEDROCK_MODEL = "us.anthropic.claude-sonnet-4-6"
 
 
 @dataclass
@@ -47,17 +44,25 @@ class GatewayResponse:
 
 @dataclass
 class GatewayClient:
-    profile: str = field(default_factory=lambda: settings.aws_profile)
-    region: str = field(default_factory=lambda: settings.aws_region)
+    nvidia_key: str = field(default_factory=lambda: os.getenv("NVIDIA_API_KEY", ""))
+    aws_profile: str = field(default_factory=lambda: settings.aws_profile)
+    aws_region: str = field(default_factory=lambda: settings.aws_region)
 
     def __post_init__(self):
-        session = boto3.Session(profile_name=self.profile, region_name=self.region)
-        self.bedrock = session.client("bedrock-runtime")
+        # NVIDIA (primary)
+        self.nvidia_client = None
+        if self.nvidia_key:
+            import openai
+            self.nvidia_client = openai.OpenAI(base_url=NVIDIA_BASE_URL, api_key=self.nvidia_key)
 
-    def _get_model(self, auto_route: str | None) -> str:
-        if auto_route and auto_route in BEDROCK_MODELS:
-            return BEDROCK_MODELS[auto_route]
-        return BEDROCK_MODELS["default"]
+        # Bedrock (fallback)
+        self.bedrock = None
+        try:
+            import boto3
+            session = boto3.Session(profile_name=self.aws_profile, region_name=self.aws_region)
+            self.bedrock = session.client("bedrock-runtime")
+        except Exception:
+            pass
 
     def chat(
         self,
@@ -70,24 +75,107 @@ class GatewayClient:
         temperature: float = 1.0,
     ) -> GatewayResponse:
         start = time.time()
-        model = self._get_model(auto_route)
 
-        # Build the Bedrock converse request
+        # Try NVIDIA first
+        if self.nvidia_client:
+            resp = self._call_nvidia(messages, tools, tool_choice, response_format, temperature)
+            if not resp.is_error:
+                resp.latency_ms = (time.time() - start) * 1000
+                self._trace(auto_route, messages, tools, resp)
+                return resp
+            log.info("nvidia_failed_trying_bedrock", error=resp.text[:80] if resp.text else "")
+
+        # Fallback to Bedrock
+        if self.bedrock:
+            resp = self._call_bedrock(messages, tools, tool_choice, response_format, temperature)
+            resp.latency_ms = (time.time() - start) * 1000
+            self._trace(auto_route, messages, tools, resp)
+            return resp
+
+        return GatewayResponse(is_error=True, text="[gateway error: no providers configured]")
+
+    def _call_nvidia(
+        self, messages, tools, tool_choice, response_format, temperature
+    ) -> GatewayResponse:
+        import openai
+
+        kwargs: dict[str, Any] = {
+            "model": NVIDIA_MODEL,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": 512,
+        }
+
+        if tools and not response_format:
+            kwargs["tools"] = [{"type": "function", "function": t} for t in tools]
+            if tool_choice:
+                kwargs["tool_choice"] = tool_choice
+
+        if response_format and "schema" in response_format:
+            kwargs["response_format"] = {"type": "json_object"}
+            schema_hint = f"\n\nYou MUST respond with valid JSON matching this schema:\n{json.dumps(response_format['schema'], indent=2)}\n\nRespond with ONLY the JSON, no other text."
+            msgs = [m.copy() for m in messages]
+            if msgs and msgs[-1]["role"] == "user":
+                msgs[-1]["content"] += schema_hint
+            else:
+                msgs.append({"role": "user", "content": schema_hint})
+            kwargs["messages"] = msgs
+
+        try:
+            response = self.nvidia_client.chat.completions.create(**kwargs)
+        except (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError) as e:
+            return GatewayResponse(model=NVIDIA_MODEL, is_error=True, error_transient=True,
+                                   text=f"[gateway error: NVIDIA: {e}]")
+        except Exception as e:
+            return GatewayResponse(model=NVIDIA_MODEL, is_error=True,
+                                   text=f"[gateway error: NVIDIA: {e}]")
+
+        resp = GatewayResponse(model=NVIDIA_MODEL, provider="nvidia")
+        choice = response.choices[0]
+
+        if choice.message.tool_calls:
+            resp.tool_calls = []
+            for tc in choice.message.tool_calls:
+                try:
+                    args = json.loads(tc.function.arguments)
+                except json.JSONDecodeError:
+                    args = {}
+                resp.tool_calls.append({"name": tc.function.name, "arguments": args})
+        elif choice.message.content:
+            resp.text = choice.message.content
+            if response_format:
+                try:
+                    resp.parsed = json.loads(resp.text)
+                except json.JSONDecodeError:
+                    text = resp.text
+                    start_idx = text.find("{")
+                    end_idx = text.rfind("}") + 1
+                    if start_idx >= 0 and end_idx > start_idx:
+                        try:
+                            resp.parsed = json.loads(text[start_idx:end_idx])
+                        except json.JSONDecodeError:
+                            pass
+
+        if response.usage:
+            resp.input_tokens = response.usage.prompt_tokens
+            resp.output_tokens = response.usage.completion_tokens
+
+        return resp
+
+    def _call_bedrock(
+        self, messages, tools, tool_choice, response_format, temperature
+    ) -> GatewayResponse:
         bedrock_messages, system_text = self._convert_messages(messages)
 
         kwargs: dict[str, Any] = {
-            "modelId": model,
+            "modelId": BEDROCK_MODEL,
             "messages": bedrock_messages,
-            "inferenceConfig": {
-                "temperature": temperature,
-                "maxTokens": 512,
-            },
+            "inferenceConfig": {"temperature": temperature, "maxTokens": 512},
         }
 
         if system_text:
             kwargs["system"] = [{"text": system_text}]
 
-        # Tools
         if tools and not response_format:
             kwargs["toolConfig"] = {
                 "tools": [self._convert_tool(t) for t in tools],
@@ -95,7 +183,6 @@ class GatewayClient:
             if tool_choice == "auto":
                 kwargs["toolConfig"]["toolChoice"] = {"auto": {}}
 
-        # JSON mode via system prompt injection
         if response_format and "schema" in response_format:
             schema_hint = f"\n\nYou MUST respond with valid JSON matching this schema:\n{json.dumps(response_format['schema'], indent=2)}\n\nRespond with ONLY the JSON, no other text."
             if system_text:
@@ -106,56 +193,67 @@ class GatewayClient:
         try:
             response = self.bedrock.converse(**kwargs)
         except Exception as e:
-            log.error("bedrock_error", model=model, error=str(e))
-            return GatewayResponse(
-                model=model, is_error=True, error_transient="throttl" in str(e).lower(),
-                text=f"[gateway error: {e}]",
-            )
+            log.error("bedrock_error", model=BEDROCK_MODEL, error=str(e))
+            return GatewayResponse(model=BEDROCK_MODEL, is_error=True,
+                                   error_transient="throttl" in str(e).lower(),
+                                   text=f"[gateway error: Bedrock: {e}]")
 
-        resp = self._parse_response(response, model, response_format)
-        resp.provider = "bedrock"
-        resp.latency_ms = (time.time() - start) * 1000
+        return self._parse_bedrock_response(response, response_format)
 
-        # Trace full LLM call
-        try:
-            from tracer import trace_llm_call
-            trace_llm_call(
-                role=auto_route or "default",
-                model=model,
-                messages=messages,
-                tools=tools,
-                response_text=resp.text,
-                tool_calls=resp.tool_calls,
-                is_error=resp.is_error,
-                latency_ms=resp.latency_ms,
-                tokens_in=resp.input_tokens,
-                tokens_out=resp.output_tokens,
-            )
-        except Exception:
-            pass
+    def _parse_bedrock_response(self, response: dict, response_format: dict | None) -> GatewayResponse:
+        resp = GatewayResponse(model=BEDROCK_MODEL, provider="bedrock")
+
+        output = response.get("output", {})
+        message = output.get("message", {})
+        content_blocks = message.get("content", [])
+
+        tool_calls = []
+        text_parts = []
+
+        for block in content_blocks:
+            if "toolUse" in block:
+                tc = block["toolUse"]
+                tool_calls.append({"name": tc["name"], "arguments": tc.get("input", {})})
+            elif "text" in block:
+                text_parts.append(block["text"])
+
+        if tool_calls:
+            resp.tool_calls = tool_calls
+        if text_parts:
+            resp.text = "\n".join(text_parts)
+
+        if response_format and resp.text:
+            try:
+                resp.parsed = json.loads(resp.text)
+            except json.JSONDecodeError:
+                text = resp.text
+                start_idx = text.find("{")
+                end_idx = text.rfind("}") + 1
+                if start_idx >= 0 and end_idx > start_idx:
+                    try:
+                        resp.parsed = json.loads(text[start_idx:end_idx])
+                    except json.JSONDecodeError:
+                        pass
+
+        usage = response.get("usage", {})
+        resp.input_tokens = usage.get("inputTokens", 0)
+        resp.output_tokens = usage.get("outputTokens", 0)
 
         return resp
 
     def _convert_messages(self, messages: list[dict]) -> tuple[list[dict], str]:
-        """Convert OpenAI-style messages to Bedrock converse format."""
         bedrock_msgs = []
         system_text = ""
 
         for msg in messages:
             role = msg.get("role", "user")
             content = msg.get("content", "")
-
             if role == "system":
                 system_text += content + "\n"
                 continue
-
             bedrock_role = "user" if role == "user" else "assistant"
-            bedrock_msgs.append({
-                "role": bedrock_role,
-                "content": [{"text": content}],
-            })
+            bedrock_msgs.append({"role": bedrock_role, "content": [{"text": content}]})
 
-        # Bedrock requires alternating roles — merge consecutive same-role messages
         if bedrock_msgs:
             merged = [bedrock_msgs[0]]
             for msg in bedrock_msgs[1:]:
@@ -168,68 +266,27 @@ class GatewayClient:
         return bedrock_msgs, system_text.strip()
 
     def _convert_tool(self, tool: dict) -> dict:
-        """Convert OpenAI tool format to Bedrock tool format."""
         params = tool.get("parameters", {})
-        # Clean up schema for Bedrock
         params = {k: v for k, v in params.items() if k != "additionalProperties"}
-
         return {
             "toolSpec": {
                 "name": tool["name"],
                 "description": tool.get("description", ""),
-                "inputSchema": {
-                    "json": params if params else {"type": "object", "properties": {}},
-                },
+                "inputSchema": {"json": params if params else {"type": "object", "properties": {}}},
             }
         }
 
-    def _parse_response(self, response: dict, model: str, response_format: dict | None) -> GatewayResponse:
-        """Parse Bedrock converse response."""
-        resp = GatewayResponse(model=model)
-
-        output = response.get("output", {})
-        message = output.get("message", {})
-        content_blocks = message.get("content", [])
-
-        tool_calls = []
-        text_parts = []
-
-        for block in content_blocks:
-            if "toolUse" in block:
-                tc = block["toolUse"]
-                tool_calls.append({
-                    "name": tc["name"],
-                    "arguments": tc.get("input", {}),
-                })
-            elif "text" in block:
-                text_parts.append(block["text"])
-
-        if tool_calls:
-            resp.tool_calls = tool_calls
-        if text_parts:
-            resp.text = "\n".join(text_parts)
-
-        # Parse JSON if response_format requested
-        if response_format and resp.text:
-            try:
-                resp.parsed = json.loads(resp.text)
-            except json.JSONDecodeError:
-                # Try to extract JSON from the response
-                text = resp.text
-                start_idx = text.find("{")
-                end_idx = text.rfind("}") + 1
-                if start_idx >= 0 and end_idx > start_idx:
-                    try:
-                        resp.parsed = json.loads(text[start_idx:end_idx])
-                    except json.JSONDecodeError:
-                        pass
-
-        # Usage
-        usage = response.get("usage", {})
-        resp.input_tokens = usage.get("inputTokens", 0)
-        resp.output_tokens = usage.get("outputTokens", 0)
-
-        return resp
+    def _trace(self, auto_route, messages, tools, resp):
+        try:
+            from tracer import trace_llm_call
+            trace_llm_call(
+                role=auto_route or "default", model=resp.model, messages=messages,
+                tools=tools, response_text=resp.text, tool_calls=resp.tool_calls,
+                is_error=resp.is_error, latency_ms=resp.latency_ms,
+                tokens_in=resp.input_tokens, tokens_out=resp.output_tokens,
+            )
+        except Exception:
+            pass
 
 
 gateway = GatewayClient()
