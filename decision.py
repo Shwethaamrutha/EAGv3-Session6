@@ -25,10 +25,11 @@ Today is {weekday}, {today.isoformat()}.
 
 You have two options:
 1. ANSWER: If you have enough information to satisfy the goal, respond CONCISELY.
-   - MAX 3 sentences. No tables, no elaborate analysis, no markdown formatting.
-   - For recommendations: "From (A, B, C), [pick ONE specific named option] because [reason]."
-   - Pick a SINGLE specific option by name — not a category like "outdoor activities".
-   - You MUST reference items from MEMORY HITS or RECENT HISTORY — never invent new options.
+   - MAX 3 sentences. No tables, no markdown formatting.
+   - For recommendations, use EXACTLY this format:
+     "[Weather/context sentence]. From the options found (A, B, C), [specific name] is most appropriate because [one reason]."
+   - Pick ONE specific named option — not a category like "outdoor activities".
+   - Reference items from MEMORY HITS or RECENT HISTORY — never invent new options.
 
 2. TOOL CALL: If you need external information or must perform an action, call exactly ONE tool.
    - Pick the most appropriate tool from the available tools.
