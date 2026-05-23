@@ -237,35 +237,24 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
             "tool": out.tool_call.name, "arguments": out.tool_call.arguments,
             "result_descriptor": result_text[:300], "artifact_id": art_id,
         })
+        arrow = chr(8594)
+        label = f"{BLUE}{'[action]':<{P}}{RESET}"
         if art_id:
             size = len(artifact_store.get_bytes(art_id))
-            # Summarize artifact content
-            raw = artifact_store.get_bytes(art_id).decode("utf-8", errors="replace")[:200]
-            summary = raw.split("\n")[0][:60] if raw else ""
-            print(f"{'[action]':<{P}}{chr(8594)} [artifact {art_id}, {size} bytes] preview: {summary}")
+            print(f"{label}{arrow} [artifact {art_id}, {size} bytes stored]")
         else:
-            # Summarize action result concisely
             text = result_text.strip()
             if text.startswith("Title:"):
-                # Search results: show count + first few titles
                 import re
                 titles = re.findall(r'Title:\s*(.+)', text)
-                count = len(titles)
-                preview = "; ".join(t.strip()[:50] for t in titles[:3])
-                print(f"{'[action]':<{P}}{chr(8594)} [{count} results] {preview}")
-            elif text.startswith("Current time:") or "wttr" in text.lower() or "°C" in text or "°F" in text:
-                # Weather/time: show the key data
-                lines = [l.strip() for l in text.split("\n") if l.strip() and not l.startswith("#")]
-                summary = lines[0][:80] if lines else text[:80]
-                print(f"{'[action]':<{P}}{chr(8594)} {summary}")
+                print(f"{label}{arrow} [{len(titles)} results returned, descriptors recorded]")
+            elif text.startswith("Created:"):
+                print(f"{label}{arrow} {text[:80]}")
             elif text.startswith("[error]") or text.startswith("Fetch error"):
-                print(f"{'[action]':<{P}}{chr(8594)} {text[:80]}")
+                print(f"{label}{arrow} {text[:80]}")
             else:
-                # Generic: first meaningful line
-                lines = [l.strip() for l in text.split("\n") if l.strip() and not l.startswith("#")]
-                summary = lines[0][:80] if lines else text[:80]
-                print(f"{'[action]':<{P}}{chr(8594)} {summary}")
-
+                size = len(text)
+                print(f"{label}{arrow} [{size} bytes received, descriptor recorded]")
     # Final answer — combine unique answers, skip duplicates
     answers = [e["text"] for e in history if e.get("kind") == "answer"]
     if answers:
