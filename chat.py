@@ -49,12 +49,12 @@ WHITE = "\033[37m"
 
 def print_banner():
     print(f"""
-{BOLD}╭──────────────────────────────────────────────╮{RESET}
-{BOLD}│  AGENT6{RESET} {DIM}— four-role agentic architecture{RESET}    {BOLD}│{RESET}
-{BOLD}│{RESET}  {DIM}Memory | Perception | Decision | Action{RESET}    {BOLD}│{RESET}
-{BOLD}╰──────────────────────────────────────────────╯{RESET}
-{DIM}  Type your query. Press Ctrl+C to exit.
-  Multi-line: end with a blank line.{RESET}
+{BOLD}{CYAN}╭──────────────────────────────────────────────────╮{RESET}
+{BOLD}{CYAN}│{RESET}  {BOLD}{WHITE}AGENT6{RESET}  {CYAN}— four-role agentic architecture{RESET}     {BOLD}{CYAN}│{RESET}
+{BOLD}{CYAN}│{RESET}  {GREEN}Memory{RESET} {DIM}|{RESET} {YELLOW}Perception{RESET} {DIM}|{RESET} {CYAN}Decision{RESET} {DIM}|{RESET} {MAGENTA}Action{RESET}    {BOLD}{CYAN}│{RESET}
+{BOLD}{CYAN}╰──────────────────────────────────────────────────╯{RESET}
+  {DIM}Type your query. Press Ctrl+C to exit.{RESET}
+  {DIM}Commands: /memory  /clear  exit{RESET}
 """)
 
 
@@ -139,10 +139,10 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
     P = 16
 
     for it in range(1, settings.max_iterations + 1):
-        print(f"\n{'─'*3} iter {it} {'─'*3}")
+        print(f"\n{DIM}{'─'*3} iter {it} {'─'*3}{RESET}")
 
         hits = memory.read(query, history)
-        print(f"{'[memory.read]':<{P}}{len(hits)} hits")
+        print(f"{GREEN}{'[memory.read]':<{P}}{RESET}{len(hits)} hits")
 
         think("perception", "Analyzing goals...")
         obs = perception.observe(query, hits, history, prior_goals, run_id)
@@ -150,11 +150,14 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
         prior_goals = obs.goals
 
         for i, g in enumerate(obs.goals):
-            prefix = f"{'[perception]':<{P}}" if i == 0 else " " * P
-            status = "[done]" if g.done else "[open]"
+            prefix = f"{YELLOW}{'[perception]':<{P}}{RESET}" if i == 0 else " " * P
+            if g.done:
+                status = f"{GREEN}[done]{RESET}"
+            else:
+                status = f"{WHITE}[open]{RESET}"
             print(f"{prefix}{status} {g.text}")
             if g.attach_artifact_id and not g.done:
-                print(f"{' ' * P}  attach={g.attach_artifact_id}")
+                print(f"{' ' * P}  {MAGENTA}attach={g.attach_artifact_id}{RESET}")
 
         if obs.all_done:
             has_answer = any(e.get("kind") == "answer" for e in history)
@@ -212,7 +215,7 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
             continue
 
         if out.is_answer:
-            print(f"{'[decision]':<{P}}ANSWER: {out.answer[:100]}...")
+            print(f"{CYAN}{'[decision]':<{P}}{RESET}ANSWER: {out.answer[:100]}...")
             history.append({"iter": it, "kind": "answer", "goal_id": goal.id, "text": out.answer})
             # If this was the last unfinished goal, we're done
             unfinished_count = sum(1 for g in obs.goals if not g.done)
@@ -221,7 +224,7 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
                 break
             continue
 
-        print(f"{'[decision]':<{P}}TOOL_CALL: {out.tool_call.name}({json.dumps(out.tool_call.arguments)[:80]})")
+        print(f"{CYAN}{'[decision]':<{P}}{RESET}TOOL_CALL: {out.tool_call.name}({json.dumps(out.tool_call.arguments)[:80]})")
         think("action", f"Calling {out.tool_call.name}...")
         result_text, art_id = await action.execute(session, out.tool_call)
         done()
