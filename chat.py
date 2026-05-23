@@ -253,12 +253,16 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
             last = answers[-1]
             last_lower = last.lower()
             # If last answer is a recommendation/synthesis, use it alone (it has full context)
-            recommendation_signals = ["recommend", "best pick", "most appropriate", "top choice",
-                                      "based on", "given the weather", "the best"]
-            if any(sig in last_lower for sig in recommendation_signals):
+            # Check if ANY goal was a synthesis/recommendation goal
+            from schemas import SYNTHESIS_KEYWORDS
+            all_goal_texts = " ".join(g.text.lower() for g in obs.goals) if obs else ""
+            has_synthesis_goal = any(kw in all_goal_texts for kw in SYNTHESIS_KEYWORDS)
+
+            if has_synthesis_goal:
+                # Synthesis query — last answer is the final recommendation
                 final = last
             else:
-                # Join partial answers (e.g. birth date + death date + contributions)
+                # Extraction query — join partial answers
                 final = "\n\n".join(answers)
     else:
         fact_hits = memory.read(query, history)
