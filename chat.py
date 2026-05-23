@@ -35,33 +35,33 @@ structlog.configure(
     logger_factory=structlog.PrintLoggerFactory(),
 )
 
-# ANSI codes
+# ANSI — soft accent palette (professional on dark terminals)
 RESET = "\033[0m"
 BOLD = "\033[1m"
 DIM = "\033[2m"
-GREEN = "\033[32m"
-CYAN = "\033[36m"
-YELLOW = "\033[33m"
-MAGENTA = "\033[35m"
-RED = "\033[31m"
-WHITE = "\033[37m"
+BLUE = "\033[38;5;75m"    # soft blue for labels
+GREEN = "\033[38;5;114m"  # muted green for success
+AMBER = "\033[38;5;179m"  # warm amber for open/pending
+WHITE = "\033[38;5;252m"  # off-white for content
+GRAY = "\033[38;5;242m"   # medium gray for borders
+PURPLE = "\033[38;5;141m" # soft purple for artifacts
 
 
 def print_banner():
     print(f"""
-{BOLD}{CYAN}╭──────────────────────────────────────────────────╮{RESET}
-{BOLD}{CYAN}│{RESET}  {BOLD}{WHITE}AGENT6{RESET}  {CYAN}— four-role agentic architecture{RESET}     {BOLD}{CYAN}│{RESET}
-{BOLD}{CYAN}│{RESET}  {GREEN}Memory{RESET} {DIM}|{RESET} {YELLOW}Perception{RESET} {DIM}|{RESET} {CYAN}Decision{RESET} {DIM}|{RESET} {MAGENTA}Action{RESET}    {BOLD}{CYAN}│{RESET}
-{BOLD}{CYAN}╰──────────────────────────────────────────────────╯{RESET}
-  {DIM}Type your query. Press Ctrl+C to exit.{RESET}
-  {DIM}Commands: /memory  /clear  exit{RESET}
+{GRAY}╭──────────────────────────────────────────────────╮{RESET}
+{GRAY}│{RESET}  {BOLD}{WHITE}AGENT6{RESET}  {GRAY}— four-role agentic architecture{RESET}     {GRAY}│{RESET}
+{GRAY}│{RESET}  {BLUE}Memory{RESET} {GRAY}·{RESET} {BLUE}Perception{RESET} {GRAY}·{RESET} {BLUE}Decision{RESET} {GRAY}·{RESET} {BLUE}Action{RESET}     {GRAY}│{RESET}
+{GRAY}╰──────────────────────────────────────────────────╯{RESET}
+  {GRAY}Type your query. Press Ctrl+C to exit.{RESET}
+  {GRAY}Commands: /memory  /clear  exit{RESET}
 """)
 
 
 def read_input() -> str | None:
     """Read user input, supporting multi-line with blank-line termination."""
     try:
-        first_line = input(f"{BOLD}{GREEN}>{RESET} ")
+        first_line = input(f"{BLUE}{BOLD}>{RESET} ")
     except (EOFError, KeyboardInterrupt):
         return None
 
@@ -72,7 +72,7 @@ def read_input() -> str | None:
     lines = [first_line]
     while True:
         try:
-            cont = input(f"{DIM}..{RESET} ")
+            cont = input(f"{GRAY}..{RESET} ")
         except (EOFError, KeyboardInterrupt):
             break
         if not cont.strip():
@@ -119,7 +119,7 @@ async def run_query(query: str, session: ClientSession = None, mcp_tools: list[d
     mem_item = memory.remember(query, source="user_query", run_id=run_id)
     done()
     if mem_item:
-        print(f"{'[memory.remember]':<{P}} stored [{mem_item.kind}] {mem_item.descriptor}")
+        print(f"{BLUE}{'[memory.remember]':<{P}}{RESET} stored [{mem_item.kind}] {mem_item.descriptor}")
 
     # Cleanup old artifacts
     artifact_store.cleanup(max_age_hours=settings.artifact_ttl_hours)
@@ -139,10 +139,10 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
     P = 16
 
     for it in range(1, settings.max_iterations + 1):
-        print(f"\n{DIM}{'─'*3} iter {it} {'─'*3}{RESET}")
+        print(f"\n{GRAY}{'─'*3} iter {it} {'─'*3}{RESET}")
 
         hits = memory.read(query, history)
-        print(f"{GREEN}{'[memory.read]':<{P}}{RESET}{len(hits)} hits")
+        print(f"{BLUE}{'[memory.read]':<{P}}{RESET}{len(hits)} hits")
 
         think("perception", "Analyzing goals...")
         obs = perception.observe(query, hits, history, prior_goals, run_id)
@@ -150,14 +150,14 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
         prior_goals = obs.goals
 
         for i, g in enumerate(obs.goals):
-            prefix = f"{YELLOW}{'[perception]':<{P}}{RESET}" if i == 0 else " " * P
+            prefix = f"{BLUE}{'[perception]':<{P}}{RESET}" if i == 0 else " " * P
             if g.done:
                 status = f"{GREEN}[done]{RESET}"
             else:
-                status = f"{WHITE}[open]{RESET}"
+                status = f"{AMBER}[open]{RESET}"
             print(f"{prefix}{status} {g.text}")
             if g.attach_artifact_id and not g.done:
-                print(f"{' ' * P}  {MAGENTA}attach={g.attach_artifact_id}{RESET}")
+                print(f"{' ' * P}  {PURPLE}attach={g.attach_artifact_id}{RESET}")
 
         if obs.all_done:
             has_answer = any(e.get("kind") == "answer" for e in history)
@@ -179,7 +179,7 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
                     if fact_text:
                         print(f"{'[decision]':<{P}}ANSWER: {fact_text[:100]}...")
                         history.append({"iter": it, "kind": "answer", "goal_id": summary_goal.id, "text": fact_text})
-            print(f"\n[done] all {len(obs.goals)} goals satisfied")
+            print(f"\n{GREEN}[done] all {len(obs.goals)} goals satisfied{RESET}")
             break
 
         goal = obs.next_unfinished()
@@ -200,7 +200,7 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
                     attached.append((h.artifact_id, blob))
                     seen_arts.add(h.artifact_id)
             if attached:
-                print(f"{'[attach]':<{P}}{len(attached)} artifacts for synthesis")
+                print(f"{PURPLE}{'[attach]':<{P}}{RESET}{len(attached)} artifacts for synthesis")
         elif goal.attach_artifact_id and artifact_store.exists(goal.attach_artifact_id):
             blob = artifact_store.get_bytes(goal.attach_artifact_id)
             attached.append((goal.attach_artifact_id, blob))
@@ -211,20 +211,20 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
         done()
 
         if out.is_error:
-            print(f"{'[decision]':<{P}}(transient error, retrying...)")
+            print(f"{BLUE}{'[decision]':<{P}}{RESET}{AMBER}(transient error, retrying...){RESET}")
             continue
 
         if out.is_answer:
-            print(f"{CYAN}{'[decision]':<{P}}{RESET}ANSWER: {out.answer[:100]}...")
+            print(f"{BLUE}{'[decision]':<{P}}{RESET}ANSWER: {out.answer[:100]}...")
             history.append({"iter": it, "kind": "answer", "goal_id": goal.id, "text": out.answer})
             # If this was the last unfinished goal, we're done
             unfinished_count = sum(1 for g in obs.goals if not g.done)
             if unfinished_count <= 1:
-                print(f"\n[done] all {len(obs.goals)} goals satisfied")
+                print(f"\n{GREEN}[done] all {len(obs.goals)} goals satisfied{RESET}")
                 break
             continue
 
-        print(f"{CYAN}{'[decision]':<{P}}{RESET}TOOL_CALL: {out.tool_call.name}({json.dumps(out.tool_call.arguments)[:80]})")
+        print(f"{BLUE}{'[decision]':<{P}}{RESET}TOOL_CALL: {out.tool_call.name}({json.dumps(out.tool_call.arguments)[:80]})")
         think("action", f"Calling {out.tool_call.name}...")
         result_text, art_id = await action.execute(session, out.tool_call)
         done()
