@@ -115,6 +115,25 @@ class GatewayClient:
         resp = self._parse_response(response, model, response_format)
         resp.provider = "bedrock"
         resp.latency_ms = (time.time() - start) * 1000
+
+        # Trace full LLM call
+        try:
+            from tracer import trace_llm_call
+            trace_llm_call(
+                role=auto_route or "default",
+                model=model,
+                messages=messages,
+                tools=tools,
+                response_text=resp.text,
+                tool_calls=resp.tool_calls,
+                is_error=resp.is_error,
+                latency_ms=resp.latency_ms,
+                tokens_in=resp.input_tokens,
+                tokens_out=resp.output_tokens,
+            )
+        except Exception:
+            pass
+
         return resp
 
     def _convert_messages(self, messages: list[dict]) -> tuple[list[dict], str]:

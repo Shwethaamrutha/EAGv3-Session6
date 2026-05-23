@@ -67,6 +67,12 @@ async def run(query: str) -> str:
 
     log.info("run_start", run_id=run_id, query=query[:100])
 
+    try:
+        from tracer import trace_run_start
+        trace_run_start(run_id, query)
+    except Exception:
+        pass
+
     # Cleanup old artifacts on startup
     artifact_store.cleanup(max_age_hours=settings.artifact_ttl_hours)
 
@@ -197,6 +203,13 @@ async def run(query: str) -> str:
 
     final = _final_answer_from(history, query)
     log.info("final_answer", text=final)
+
+    try:
+        from tracer import trace_run_end
+        trace_run_end(run_id, final, it if 'it' in dir() else 0)
+    except Exception:
+        pass
+
     return final
 
 

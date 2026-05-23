@@ -49,4 +49,11 @@ async def execute(session: ClientSession, tool_call: ToolCall) -> tuple[str, str
         preview = full_text[:200].replace("\n", " ")
         return f"[artifact {art_id}, {len(blob)} bytes] preview: {preview}...", art_id
 
+    # Trace tool call
+    try:
+        from tracer import trace_tool_call
+        trace_tool_call(tool_call.name, tool_call.arguments, full_text, None, False)
+    except Exception:
+        pass
+
     return full_text, None
