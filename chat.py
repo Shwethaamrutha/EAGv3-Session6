@@ -162,23 +162,24 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
         if obs.all_done:
             has_answer = any(e.get("kind") == "answer" for e in history)
             if not has_answer:
-                # Decision must produce an explicit answer before we finish
-                think("decision", "Generating answer...")
-                summary_goal = obs.goals[-1]
-                out = decision.next_step(summary_goal, hits, [], history, mcp_tools)
-                done()
-                if out.is_answer:
-                    print(f"{'[decision]':<{P}}ANSWER: {out.answer[:100]}...")
-                    history.append({"iter": it, "kind": "answer", "goal_id": summary_goal.id, "text": out.answer})
-                elif hits:
-                    # Fallback: construct from facts
-                    fact_text = "; ".join(
-                        f"{h.descriptor}: {json.dumps(h.value, default=str)}"
-                        for h in hits if h.kind == "fact"
+                # Summarize actions taken as the answer
+                actions = [e for e in history if e.get("kind") == "action"]
+                if actions:
+                    summary = "; ".join(
+                        f"{e['tool']}({list(e.get('arguments', {}).values())[0] if e.get('arguments') else ''})"
+                        if e.get('arguments') else e['tool']
+                        for e in actions
                     )
-                    if fact_text:
-                        print(f"{'[decision]':<{P}}ANSWER: {fact_text[:100]}...")
-                        history.append({"iter": it, "kind": "answer", "goal_id": summary_goal.id, "text": fact_text})
+                    answer = f"Done. Actions: {summary}"
+                else:
+                    # No actions, try Decision
+                    think("decision", "Generating answer...")
+                    summary_goal = obs.goals[-1]
+                    out = decision.next_step(summary_goal, hits, [], history, mcp_tools)
+                    done()
+                    answer = out.answer if out.is_answer else "Done."
+                print(f"{BLUE}{'[decision]':<{P}}{RESET}ANSWER: {answer[:100]}...")
+                history.append({"iter": it, "kind": "answer", "goal_id": obs.goals[-1].id, "text": answer})
             print(f"\n{GREEN}[done] all {len(obs.goals)} goals satisfied{RESET}")
             break
 
