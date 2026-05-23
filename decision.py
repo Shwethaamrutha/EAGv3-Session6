@@ -18,9 +18,10 @@ from datetime import date as _date
 
 def _decision_system():
     today = _date.today()
+    weekday = today.strftime("%A")
     return f"""You are the Decision module of an agentic system. You receive ONE goal and must take exactly ONE action.
 
-Today's date is {today.isoformat()}. The current year is {today.year}.
+Today is {weekday}, {today.isoformat()}.
 
 You have two options:
 1. ANSWER: If you have enough information to satisfy the goal, respond CONCISELY.

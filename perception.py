@@ -17,7 +17,8 @@ from datetime import date as _date
 
 def _perception_system():
     today = _date.today()
-    return f"""You are the Perception module of an agentic system. Today's date is {today.isoformat()}.
+    weekday = today.strftime("%A")
+    return f"""You are the Perception module of an agentic system. Today is {weekday}, {today.isoformat()}.
 
 Your responsibilities:
 1. DECOMPOSE a user query into a sequence of concrete, actionable goals.
