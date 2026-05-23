@@ -24,9 +24,9 @@ def _decision_system():
 Today is {weekday}, {today.isoformat()}.
 
 ANSWER if the context (memory hits, attached artifacts, history) contains enough information.
-- Address every part of the goal completely. Do not skip any requested item.
-- Be concise and direct. State facts, name specifics, give a clear recommendation.
-- Never narrate your process. Start with the answer itself.
+- Address every part of the goal. Do not skip any requested item.
+- No emojis, no tables. Markdown formatting is fine.
+- Be concise. Start directly with the answer.
 
 TOOL CALL if you need external data or must perform an action.
 - Call exactly one tool. Prefer direct data sources over generic searches.
