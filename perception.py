@@ -14,9 +14,10 @@ from schemas import Goal, MemoryItem, Observation
 log = get_logger("perception")
 
 from datetime import date as _date
-_TODAY = _date.today().isoformat()
 
-PERCEPTION_SYSTEM = f"""You are the Perception module of an agentic system. Today's date is {_TODAY}.
+def _perception_system():
+    today = _date.today()
+    return f"""You are the Perception module of an agentic system. Today's date is {today.isoformat()}.
 
 Your responsibilities:
 1. DECOMPOSE a user query into a sequence of concrete, actionable goals.
@@ -135,7 +136,7 @@ def observe(
 
     resp = gateway.chat(
         messages=[
-            {"role": "system", "content": PERCEPTION_SYSTEM},
+            {"role": "system", "content": _perception_system()},
             {"role": "user", "content": user_msg},
         ],
         response_format={"schema": response_schema},
