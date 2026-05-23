@@ -162,22 +162,12 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
         if obs.all_done:
             has_answer = any(e.get("kind") == "answer" for e in history)
             if not has_answer:
-                # Summarize actions taken as the answer
-                actions = [e for e in history if e.get("kind") == "action"]
-                if actions:
-                    summary = "; ".join(
-                        f"{e['tool']}({list(e.get('arguments', {}).values())[0] if e.get('arguments') else ''})"
-                        if e.get('arguments') else e['tool']
-                        for e in actions
-                    )
-                    answer = f"Done. Actions: {summary}"
-                else:
-                    # No actions, try Decision
-                    think("decision", "Generating answer...")
-                    summary_goal = obs.goals[-1]
-                    out = decision.next_step(summary_goal, hits, [], history, mcp_tools)
-                    done()
-                    answer = out.answer if out.is_answer else "Done."
+                # Ask Decision to summarize what was accomplished
+                think("decision", "Generating summary...")
+                summary_goal = obs.goals[-1]
+                out = decision.next_step(summary_goal, hits, [], history, mcp_tools)
+                done()
+                answer = out.answer if out.is_answer else "Done."
                 print(f"{BLUE}{'[decision]':<{P}}{RESET}ANSWER: {answer[:100]}...")
                 history.append({"iter": it, "kind": "answer", "goal_id": obs.goals[-1].id, "text": answer})
             print(f"\n{GREEN}[done] all {len(obs.goals)} goals satisfied{RESET}")
