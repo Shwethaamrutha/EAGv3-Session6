@@ -58,6 +58,9 @@ async def run_query(query, session, mcp_tools):
     history = []
     prior_goals = []
 
+    # Clear artifacts between queries to prevent cross-contamination
+    artifact_store.clear()
+
     print(f"\n{'='*70}")
     print(f"  QUERY: {query}")
     print(f"{'='*70}\n")

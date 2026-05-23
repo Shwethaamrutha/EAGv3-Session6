@@ -31,6 +31,8 @@ You have two options:
 
 2. TOOL CALL: If you need external information or must perform an action, call exactly ONE tool.
    - Pick the most appropriate tool from the available tools.
+   - For weather data: use fetch_url("https://wttr.in/CITY?format=3") — fast, reliable, text response.
+   - For calendar reminders: create .ics files (iCalendar format) that can be imported into calendar apps.
    - NEVER pass artifact handles (strings starting with "art:") as file paths or URLs.
 
 CRITICAL PRIORITY:

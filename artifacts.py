@@ -43,6 +43,11 @@ class ArtifactStore:
     def exists(self, artifact_id: str) -> bool:
         return artifact_id in self._blobs
 
+    def clear(self):
+        """Clear all artifacts from memory."""
+        self._blobs.clear()
+        self._meta.clear()
+
     def cleanup(self, max_age_hours: int = 72):
         """No-op for in-memory store. Artifacts are cleared on process exit."""
         pass
