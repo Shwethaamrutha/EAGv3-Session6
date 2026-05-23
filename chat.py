@@ -250,18 +250,15 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
         if len(answers) == 1:
             final = answers[0]
         else:
-            # Check if last answer already contains key info from prior ones
-            # (e.g. "Birth date: X. Death date: Y. Contributions: ...")
             last = answers[-1]
-            prior_key_words = set()
-            for a in answers[:-1]:
-                prior_key_words.update(w for w in a.split() if len(w) > 4)
-            overlap = len(prior_key_words & set(last.split())) / max(len(prior_key_words), 1)
-            if overlap > 0.3:
-                # Last answer is a summary covering prior content
+            last_lower = last.lower()
+            # If last answer is a recommendation/synthesis, use it alone (it has full context)
+            recommendation_signals = ["recommend", "best pick", "most appropriate", "top choice",
+                                      "based on", "given the weather", "the best"]
+            if any(sig in last_lower for sig in recommendation_signals):
                 final = last
             else:
-                # Partial answers for different goals — join them
+                # Join partial answers (e.g. birth date + death date + contributions)
                 final = "\n\n".join(answers)
     else:
         fact_hits = memory.read(query, history)
