@@ -10,8 +10,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-TRACE_FILE = Path("state/trace.jsonl")
-TRACE_FILE.parent.mkdir(parents=True, exist_ok=True)
+TRACE_DIR = Path("logs")
+TRACE_DIR.mkdir(parents=True, exist_ok=True)
+TRACE_FILE = TRACE_DIR / "trace.jsonl"
 
 
 def _write(event: dict):
