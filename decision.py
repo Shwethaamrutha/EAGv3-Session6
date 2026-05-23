@@ -40,10 +40,11 @@ CRITICAL PRIORITY:
 
 Rules:
 - Do exactly one thing: answer OR call one tool. Never both.
-- NEVER narrate your reasoning. Start DIRECTLY with the facts.
+- NEVER narrate your reasoning. No "Based on memory hits", no "From the available information".
+  Start DIRECTLY with the answer content. First word should be part of the answer.
 - Be efficient. One tool call should accomplish the goal if possible.
-- Always give a concrete answer from available information. Never ask for clarification.
-- When answering a synthesis goal: combine info from ALL memory hits.
+- Always give a concrete answer. Never ask for clarification.
+- Keep answers under 5 sentences. Be direct and factual.
 """
 
 DECISION_USER = """GOAL: {goal_text}
