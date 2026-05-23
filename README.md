@@ -78,188 +78,69 @@ uv run pytest tests/ -v
 
 ## Target Queries (actual terminal output)
 
-> The following is captured from `uv run python demo.py` on a clean state. See `demo-output.txt` for the full unedited run.
+> The following is captured from `uv run python chat.py` on a clean state.
 
-### Query A — Wikipedia Fetch + Extraction (4 iterations)
+### Query A — Wikipedia Fetch + Extraction
 
-```
-─── iter 1 ───
-[memory.read]   0 hits
-[perception]    [open] Fetch https://en.wikipedia.org/wiki/Claude_Shannon
-                [open] Extract Claude Shannon's birth date from the Wikipedia page
-                [open] Extract Claude Shannon's death date from the Wikipedia page
-                [open] Extract three key contributions to information theory
-[decision]      TOOL_CALL: fetch_url({"url": "https://en.wikipedia.org/wiki/Claude_Shannon"})
-[action]        → [artifact art:067c3fd99a6a0ae8, 80201 bytes]
+![Query A Output](screenshots/query_a.png)
 
-─── iter 2 ───
-[perception]    [done] Fetch https://en.wikipedia.org/wiki/Claude_Shannon
-                [open] Extract Claude Shannon's birth date
-                  attach=art:067c3fd99a6a0ae8
-[decision]      ANSWER: Claude Shannon's birth date was April 30, 1916.
-
-─── iter 3 ───
-[perception]    [done] Extract Claude Shannon's birth date
-                [open] Extract Claude Shannon's death date
-                  attach=art:067c3fd99a6a0ae8
-[decision]      ANSWER: Claude Shannon died on February 24, 2001, at age 84.
-
-─── iter 4 ───
-[perception]    [done] Extract Claude Shannon's death date
-                [open] Extract three key contributions to information theory
-                  attach=art:067c3fd99a6a0ae8
-[decision]      ANSWER: (1) "A Mathematical Theory of Communication" (1948)...
-
-[done] all 4 goals satisfied
-
-FINAL: Birth date: April 30, 1916. Death date: February 24, 2001.
-       (1) "A Mathematical Theory of Communication" — founded information theory
-       (2) Introduction of the "bit" as the fundamental unit of information
-       (3) Nyquist–Shannon Sampling Theorem — enabled analog-to-digital transition
-```
-
-### Query B — Multi-Goal + Weather Constraint (9 iterations)
 
 ```
-─── iter 1 ───
-[perception]    [open] Find 3 family-friendly activities in Tokyo
-                [open] Check Saturday's weather forecast for Tokyo (2026-05-24)
-                [open] Evaluate which is most appropriate based on weather
-[decision]      TOOL_CALL: web_search({"query": "top 3 family-friendly attractions Tokyo"})
-[action]        → [3 results] The best Tokyo Family-friendly activities 2026; ...
-
-─── iter 2 ───
-[perception]    [done] Find 3 family-friendly activities in Tokyo
-[decision]      TOOL_CALL: fetch_url({"url": "https://wttr.in/Tokyo?format=3"})
-[action]        → tokyo: 🌤️ +15°C
-
-─── iter 3-8 ───
-(fetches activity details from multiple sources, some return 403)
-
-─── iter 9 ───
-[perception]    [done] Find 3 family-friendly activities
-                [done] Check Saturday's weather forecast
-                [done] Extract detailed activity information
-[decision]      ANSWER: From the three options found (Shinjuku Sumo Show, Sushi Making
-                in Ginza, Samurai Ninja Museum Asakusa), the Tokyo Sushi Making
-                Experience in Ginza is most appropriate — fully indoors, weather-proof,
-                hands-on and engaging for families at +15°C partly cloudy.
-
-[done] all 4 goals satisfied
-```
-
-### Query C — Durable Memory Across Runs (Run 1: 3 iters, Run 2: 1 iter)
-
-```
-Run 1:
-[memory.remember] stored [fact] Mom's birthday is May 15, 2026
-
-─── iter 1 ───
-[perception]    [done] Store mom's birthday in memory
-                [open] Set calendar reminder for May 1, 2026 (two weeks before)
-                [open] Set calendar reminder for May 15, 2026 (birthday day)
-[decision]      TOOL_CALL: create_file({"path": "mom_birthday_reminder_may1.ics", ...})
-[action]        → Created: mom_birthday_reminder_may1.ics (482 bytes)
-
-─── iter 2 ───
-[perception]    [done] Set calendar reminder for May 1, 2026
-                [open] Set calendar reminder for May 15, 2026
-[decision]      TOOL_CALL: create_file({"path": "mom_birthday_day_may15.ics", ...})
-[action]        → Created: mom_birthday_day_may15.ics (398 bytes)
-
-─── iter 3 ───
-[perception]    [done] all reminders created
-[decision]      ANSWER: Both .ics files created — importable to Google/Apple Calendar.
-
-[done] all 3 goals satisfied
-
----
-
-Run 2:
-─── iter 1 ───
-[memory.read]   1 hits
-[perception]    [done] Find mom's birthday date
-[decision]      ANSWER: Mom's birthday is May 15, 2026.
-
-[done] all 1 goals satisfied
-```
-
-### Query D — Multi-Source Synthesis (4 iterations)
-
-```
-Search for 'Python asyncio best practices', read the top 3 results,
-and give me a short numbered list of the advice they agree on... 
+> Fetch https://en.wikipedia.org/wiki/Claude_Shannon and tell me his
+birth date, death date, and three key contributions to information
+theory... .. 
 .. 
 
 ─── iter 1 ───
 [memory.read]   0 hits
-[perception]    [ ] Search for 'Python asyncio best practices'
-                [ ] Fetch and read the first search result
-                [ ] Fetch and read the second search result
-                [ ] Fetch and read the third search result
-                [ ] Identify and list the advice that all three sources agree on
-[decision]      TOOL_CALL: web_search({"query": "Python asyncio best practices", "max_results": 3})
-[action]        → [3 results] Asyncio Best Practices and Common Pitfalls - Shane; Asyncio best practices - Async-SIG - Discussions o; How to Use asyncio for Concurrent Programming in P
+[perception]    [ ] Fetch https://en.wikipedia.org/wiki/Claude_Shannon
+                [ ] Extract birth date, death date, and three key contributions to information theory from the fetched page
+[decision]      TOOL_CALL: fetch_url({"url": "https://en.wikipedia.org/wiki/Claude_Shannon"})
+[action]        → [artifact art:067c3fd99a6a0ae8, 80201 bytes stored]
 
 ─── iter 2 ───
 [memory.read]   1 hits
-[perception]    [✓] Search for 'Python asyncio best practices'
-                [ ] Fetch and read the first search result
-                [ ] Fetch and read the second search result
-                [ ] Fetch and read the third search result
-                [ ] Identify and list the advice that all three sources agree on
-[decision]      TOOL_CALL: fetch_url({"url": "https://www.shanechang.com/p/python-asyncio-best-practices-pitfalls"})
-[action]        → Python’s asyncio library is powerful but comes with its own set of conventions a
-
-─── iter 3 ───
-[memory.read]   2 hits
-[perception]    [✓] Search for 'Python asyncio best practices'
-                [✓] Fetch and read the first search result
-                [ ] Fetch and read the second search result
-                [ ] Fetch and read the third search result
-                [ ] Identify and list the advice that all three sources agree on
-[decision]      TOOL_CALL: fetch_url({"url": "https://discuss.python.org/t/asyncio-best-practices/12576"})
-[action]        → [TobiasHT](https://discuss.python.org/u/TobiasHT)
-
-─── iter 4 ───
-[memory.read]   3 hits
-[perception]    [✓] Search for 'Python asyncio best practices'
-                [✓] Fetch and read the first search result
-                [✓] Fetch and read the second search result
-                [ ] Fetch and read the third search result
-                [ ] Identify and list the advice that all three sources agree on
-[decision]      TOOL_CALL: fetch_url({"url": "https://oneuptime.com/blog/post/2026-01-24-asyncio-concurrent-programmi)
-[action]        → [artifact art:ad2033105f6cead5, 10987 bytes] preview: # How to Use asyncio for Concurrent Programming in Python
-
-─── iter 5 ───
-[memory.read]   4 hits
-[perception]    [✓] Search for 'Python asyncio best practices'
-                [✓] Fetch and read the first search result
-                [✓] Fetch and read the second search result
-                [✓] Fetch and read the third search result
-                [ ] Identify and list the advice that all three sources agree on
-                      attach=art:ad2033105f6cead5
+[perception]    [✓] Fetch https://en.wikipedia.org/wiki/Claude_Shannon
+                [ ] Extract birth date, death date, and three key contributions to information theory from the fetched page
+                      attach=art:067c3fd99a6a0ae8
 [attach]        1 artifacts for synthesis
-[decision]      ANSWER: All three sources (Shane Chang's blog, OneUptime/concurrent programming guide, and Python.org Async-...
+[decision]      ANSWER: **Birth date:** April 30, 1916
+**Death date:** February 24, 2001
 
-[done] all 5 goals satisfied
-```
-╭───────────────────────────────────────────────────────────────────────────────────────── FINAL ─────────────────────────────────────────────────────────────────────────────────────────╮
-│                                                                                                                                                                                         │
-│  All three sources (Shane Chang's blog, OneUptime/concurrent programming guide, and Python.org Async-SIG discussion) agree on the following advice:                                     │
-│                                                                                                                                                                                         │
-│   1 Don't block the event loop — Never use blocking calls (e.g., time.sleep()) inside async functions. Use await asyncio.sleep() or offload blocking work with run_in_executor().       │
-│   2 Use asyncio.run() as the main entry point — Start your asyncio program with asyncio.run(main()) rather than manually managing the event loop.                                       │
-│   3 Use asyncio.gather() or create_task() to run coroutines concurrently — Don't await independent operations sequentially; schedule them concurrently to get the performance benefits  │
-│     of async.                                                                                                                                                                           │
-│   4 Use async/await consistently — Any function that does async work must be defined with async def and called with await; mixing sync and async incorrectly breaks concurrency.        │
-│                                                                                                                                                                                         │
-╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+**Three key contributions to infor...
+
+[done] all 2 goals satisfied
+
+╭────────────────────────────────────────────────────────────────────────────────────────────────────── FINAL ───────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                                                                                                                    │
+│  Birth date: April 30, 1916 Death date: February 24, 2001                                                                                                                                                          │
+│                                                                                                                                                                                                                    │
+│  Three key contributions to information theory:                                                                                                                                                                    │
+│                                                                                                                                                                                                                    │
+│   1 "A Mathematical Theory of Communication" (1948) — Founded the field of information theory by developing information entropy as a measure of information content in a message, establishing the mathematical    │
+│     framework for all digital communication.                                                                                                                                                                       │
+│   2 Formal introduction of the "bit" — Coined and defined the bit as the fundamental unit of information, underpinning all digital data representation.                                                            │
+│   3 Proof of the unbreakability of the one-time pad / "Communication Theory of Secrecy Systems" (1949) — Proved that perfectly secure encryption requires a truly random key as large as the plaintext, and that   │
+│     any unbreakable cipher must share these properties, founding modern cryptography alongside information theory.                                                                                                 │
+│                                                                                                                                                                                                                    │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 > 
 
+```
 
+### Query B — Multi-Goal + Weather Constraint
 
-> Full unedited output: see `demo-output.txt`
+![Query B Output](screenshots/query_b.png)
+
+### Query C — Durable Memory Across Runs
+
+![Query C Run 1](screenshots/query_c_run1.png)
+
+![Query C Run 2](screenshots/query_c_run2.png)
+
+### Query D — Multi-Source Synthesis
+
+![Query D Output](screenshots/query_d.png)
 
 ## Key Design Decisions
 
