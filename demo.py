@@ -157,12 +157,23 @@ async def run_query(query, session, mcp_tools):
             lines = [l.strip() for l in text.split("\n") if l.strip() and not l.startswith("#")]
             print(f"{'[action]':<{P}}{chr(8594)} {lines[0][:80]}" if lines else f"{'[action]':<{P}}{chr(8594)} {text[:80]}")
 
-    # Final answer
+    # Final answer — use last answer (most complete), unless partials need combining
     answers = [e["text"] for e in history if e.get("kind") == "answer"]
-    if answers:
-        final = "\n\n".join(answers)
-    else:
+    if not answers:
         final = "No answer produced."
+    elif len(answers) == 1:
+        final = answers[0]
+    else:
+        # For multi-part extractions (birth, death, contributions), join concisely
+        # For synthesis queries, last answer is the complete one
+        last = answers[-1]
+        prior_combined = " ".join(answers[:-1])
+        # If last answer already covers prior content, use it alone
+        overlap_words = set(last.lower().split()) & set(prior_combined.lower().split())
+        if len(overlap_words) > len(set(prior_combined.lower().split())) * 0.5:
+            final = last
+        else:
+            final = "\n\n".join(answers)
 
     print(f"\nFINAL: {final}\n")
 

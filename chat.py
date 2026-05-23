@@ -266,10 +266,17 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
                 summary = lines[0][:80] if lines else text[:80]
                 print(f"{'[action]':<{P}}{chr(8594)} {summary}")
 
-    # Final answer
+    # Final answer — combine unique answers, skip duplicates
     answers = [e["text"] for e in history if e.get("kind") == "answer"]
     if answers:
-        final = "\n\n".join(answers)
+        # If only 1 answer or last answer is a summary (longer than prior ones combined), use last
+        if len(answers) == 1:
+            final = answers[0]
+        elif len(answers[-1]) > sum(len(a) for a in answers[:-1]):
+            final = answers[-1]
+        else:
+            # Multiple partial answers (e.g. birth date, death date, contributions) — join
+            final = "\n\n".join(answers)
     else:
         fact_hits = memory.read(query, history)
         facts = [f"{h.descriptor}: {json.dumps(h.value, default=str)}" for h in fact_hits if h.kind == "fact"]
