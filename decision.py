@@ -162,20 +162,22 @@ def next_step(
     if unfetched:
         pending_urls_text = f"PENDING URLs TO FETCH (not yet read):\n  " + "\n  ".join(unfetched[:5]) + "\n\n"
 
-    # Determine if this is a synthesis/recommendation goal
-    synthesis_keywords = {"synthesize", "synthesise", "extract", "list", "compare",
-                          "decide", "choose", "summarize", "common", "agree", "advice",
-                          "tell me", "which one", "appropriate", "recommend", "most"}
+    # Determine if this is a FINAL synthesis/recommendation goal (combines multiple sources)
+    synthesis_keywords = {"synthesize", "synthesise", "compare", "common", "agree",
+                          "decide", "choose", "appropriate", "recommend", "most",
+                          "all 3", "all three", "they agree", "advice they"}
     goal_is_synthesis = any(kw in goal.text.lower() for kw in synthesis_keywords)
 
     # Force answer (no tools) when:
-    # 1. Artifacts attached and no pending fetches, OR
-    # 2. This is a synthesis/recommendation goal and prior tool results exist in memory
-    has_prior_results = sum(1 for h in hits if h.kind == "tool_outcome") >= 2
-    if (attached and not unfetched) or (goal_is_synthesis and has_prior_results):
+    # 1. Artifacts attached and no pending URLs to fetch
+    # 2. This is a FINAL synthesis goal (not intermediate) and sufficient data exists
+    is_final_synthesis = goal_is_synthesis and not unfetched
+    has_sufficient_data = sum(1 for h in hits if h.kind == "tool_outcome") >= 2
+
+    if (attached and not unfetched) or (is_final_synthesis and has_sufficient_data):
         use_tools = None
         tools_text = "(tools disabled — answer using MEMORY HITS and any ATTACHED ARTIFACTS)"
-        pending_urls_text = ""  # Don't show URLs for synthesis goals
+        pending_urls_text = ""
     else:
         use_tools = mcp_tools
         tools_text = _format_tools(mcp_tools)
