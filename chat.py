@@ -149,10 +149,14 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
         done()
         prior_goals = obs.goals
 
+        # Determine which goal is currently being worked on
+        next_goal = obs.next_unfinished()
         for i, g in enumerate(obs.goals):
             prefix = f"{BLUE}{'[perception]':<{P}}{RESET}" if i == 0 else " " * P
             if g.done:
                 status = f"{GREEN}[✓]{RESET}"
+            elif next_goal and g.id == next_goal.id:
+                status = f"{AMBER}[→]{RESET}"
             else:
                 status = f"{GRAY}[ ]{RESET}"
             print(f"{prefix}{status} {g.text}")
