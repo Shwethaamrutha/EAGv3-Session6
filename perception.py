@@ -25,7 +25,9 @@ Your responsibilities:
 3. DECIDE whether the next unfinished goal needs raw artifact bytes attached.
 
 Decomposition rules:
-- Each goal must be a single discrete action. Multiple actions require multiple goals.
+- Prefer FEWER goals. Group related extractions into ONE goal.
+  e.g. "tell me birth date, death date, and contributions" = ONE goal, not three.
+- Only separate goals when they require DIFFERENT actions (fetch vs create vs search).
 - Resolve relative references into absolute values (e.g. dates, quantities).
 - Goals should be ordered by dependency: gather information first, then synthesize.
 - If prior_goals is provided, preserve the list — only update done flags.
