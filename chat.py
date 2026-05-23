@@ -255,10 +255,25 @@ async def _run_loop(query, run_id, history, prior_goals, session, mcp_tools):
             else:
                 size = len(text)
                 print(f"{label}{arrow} [{size} bytes received, descriptor recorded]")
-    # Final answer — always use the last answer (most complete)
+    # Final answer
     answers = [e["text"] for e in history if e.get("kind") == "answer"]
     if answers:
-        final = answers[-1]
+        if len(answers) == 1:
+            final = answers[0]
+        else:
+            # Check if last answer already contains key info from prior ones
+            # (e.g. "Birth date: X. Death date: Y. Contributions: ...")
+            last = answers[-1]
+            prior_key_words = set()
+            for a in answers[:-1]:
+                prior_key_words.update(w for w in a.split() if len(w) > 4)
+            overlap = len(prior_key_words & set(last.split())) / max(len(prior_key_words), 1)
+            if overlap > 0.3:
+                # Last answer is a summary covering prior content
+                final = last
+            else:
+                # Partial answers for different goals — join them
+                final = "\n\n".join(answers)
     else:
         fact_hits = memory.read(query, history)
         facts = [f"{h.descriptor}: {json.dumps(h.value, default=str)}" for h in fact_hits if h.kind == "fact"]
