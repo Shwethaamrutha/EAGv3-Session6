@@ -82,7 +82,7 @@ uv run pytest tests/ -v
 
 ### Query A — Wikipedia Fetch + Extraction
 
-![Query A Output](screenshots/query_a.png)
+![Query A Output](screenshots/Query-1.png)
 
 
 ```
@@ -130,17 +130,17 @@ theory... ..
 
 ### Query B — Multi-Goal + Weather Constraint
 
-![Query B Output](screenshots/query_b.png)
+![Query B Output](screenshots/Query-2.png)
 
 ### Query C — Durable Memory Across Runs
 
-![Query C Run 1](screenshots/query_c_run1.png)
-
-![Query C Run 2](screenshots/query_c_run2.png)
+![Query C Output](screenshots/Query-3.png)
 
 ### Query D — Multi-Source Synthesis
 
-![Query D Output](screenshots/query_d.png)
+![Query D Output Part A](screenshots/Query-4-Part-A.png)
+
+![Query D Output Part B](screenshots/Query-4-Part-B.png)
 
 ## Key Design Decisions
 
