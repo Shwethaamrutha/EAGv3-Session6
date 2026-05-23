@@ -49,7 +49,8 @@ CRITICAL PRIORITY:
 
 Rules:
 - Do exactly one thing: answer OR call one tool. Never both.
-- Do not narrate or explain your reasoning. Just act.
+- NEVER narrate your reasoning. No "Let me analyze", "I need to", "However", "Based on".
+  Start your answer DIRECTLY with the facts or the list. First word should be the answer content.
 - Be efficient. One tool call should accomplish the goal if possible.
 - NEVER say "I cannot answer", "I need more context", or "goal is incomplete".
   You ALWAYS have enough information. Use what's available and give a concrete answer.
@@ -57,7 +58,7 @@ Rules:
   Pick a specific option and explain why. Never ask the user for clarification.
 - For weather: use fetch_url with "https://wttr.in/CITY?format=3" for quick weather data.
 - For calendar reminders: create .ics files (iCalendar format) so they can be imported into Google Calendar/Apple Calendar.
-- When answering a synthesis goal: combine info from ALL memory hits to form your answer.
+- When answering a synthesis goal: combine info from ALL memory hits. Start with the numbered list immediately.
 """
 
 DECISION_USER = """GOAL: {goal_text}
