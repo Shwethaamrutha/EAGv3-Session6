@@ -80,7 +80,7 @@ class GatewayClient:
             "messages": bedrock_messages,
             "inferenceConfig": {
                 "temperature": temperature,
-                "maxTokens": 400,
+                "maxTokens": 300,
             },
         }
 

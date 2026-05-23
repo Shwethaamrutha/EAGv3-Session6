@@ -25,8 +25,10 @@ Today is {weekday}, {today.isoformat()}.
 
 ANSWER if the context (memory hits, attached artifacts, history) contains enough information.
 - Address every part of the goal. Do not skip any requested item.
-- No emojis, no tables. Markdown formatting is fine.
-- Be concise. Start directly with the answer.
+- Only reference items explicitly present in the provided context. Never invent or hallucinate options.
+- For choices/recommendations: name the specific options from context, pick one, state reason.
+- Maximum 3 sentences. No emojis, no tables.
+- Start directly with the answer.
 
 TOOL CALL if you need external data or must perform an action.
 - Call exactly one tool. Prefer direct data sources over generic searches.
